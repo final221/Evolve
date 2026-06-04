@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Evolve 2.0
-// @namespace    http://tampermonkey.net/
+// @namespace    https://github.com/final221/Evolve
 // @version      0.1.0
 // @description  try to take over the world!
 // @downloadURL  https://raw.githubusercontent.com/final221/Evolve/main/dist/evolve_automation.user.js

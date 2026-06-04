@@ -7,6 +7,7 @@ const headerPath = path.join(root, "src", "userscript-header.txt");
 const sourceFilesPath = path.join(root, "src", "source-files.json");
 const requiredMetadata = [
   "// @name         Evolve 2.0",
+  "// @namespace    https://github.com/final221/Evolve",
   "// @version      0.1.0",
   "// @downloadURL  https://raw.githubusercontent.com/final221/Evolve/main/dist/evolve_automation.user.js",
   "// @updateURL    https://raw.githubusercontent.com/final221/Evolve/main/dist/evolve_automation.user.js",
