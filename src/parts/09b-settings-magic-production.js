@@ -104,6 +104,7 @@
 
     function updateProductionTableSmelter(currentNode) {
         addStandardHeading(currentNode, "Smelter");
+        let schema = getProductionSettingsSchema();
 
         let smelterOptions = [{val: "iron", label: "Prioritize Iron", hint: "Produce only Iron, untill storage capped, and switch to Steel after that"},
                               {val: "steel", label: "Prioritize Steel", hint: "Produce as much Steel as possible, untill storage capped, and switch to Iron after that"},
@@ -112,99 +113,24 @@
         addSettingsSelect(currentNode, "productionSmelting", "Smelters production", "Distribution of smelters between iron and steel", smelterOptions);
         addSettingsNumber(currentNode, "productionSmeltingIridium", "Iridium ratio", "Share of smelters dedicated to Iridium");
 
-        currentNode.append(`
-          <table style="width:100%">
-            <tr>
-              <th class="has-text-warning" style="width:95%">Fuel</th>
-              <th style="width:5%"></th>
-            </tr>
-            <tbody id="script_productionTableBodySmelter"></tbody>
-          </table>`);
-
-        let tableBodyNode = $('#script_productionTableBodySmelter');
-        let newTableBodyText = "";
-
-        let smelterFuels = SmelterManager.managedFuelPriorityList();
-
-        for (let i = 0; i < smelterFuels.length; i++) {
-            let fuel = smelterFuels[i];
-            newTableBodyText += `<tr value="${fuel.id}" class="script-draggable"><td id="script_smelter_${fuel.id}" style="width:95%"></td><td style="width:5%"><span class="script-lastcolumn"></span></td></tr>`;
-        }
-        tableBodyNode.append($(newTableBodyText));
-
-        // Build all other productions settings rows
-        for (let i = 0; i < smelterFuels.length; i++) {
-            let fuel = smelterFuels[i];
-            let productionElement = $('#script_smelter_' + fuel.id);
-
-            productionElement.append(buildTableLabel(fuel.id));
-        }
-
-        tableBodyNode.sortable({
-            items: "tr:not(.unsortable)",
-            helper: sorterHelper,
-            update: function() {
-                let fuelIds = tableBodyNode.sortable('toArray', {attribute: 'value'});
-                for (let i = 0; i < fuelIds.length; i++) {
-                    settingsRaw["smelter_fuel_p_" + fuelIds[i]] = i;
-                }
-
-                updateSettingsFromState();
-            },
-        });
+        renderSettingsTable(currentNode, schema.tables.smelter);
     }
 
     function updateProductionTableFactory(currentNode) {
         addStandardHeading(currentNode, "Factory");
+        let schema = getProductionSettingsSchema();
         let weightingOptions = [{val: "none", label: "None", hint: "Use configured weightings with no additional adjustments, resources with x2 weighting will be produced two times more intense than with x1, etc."},
                                 {val: "demanded", label: "Prioritize demanded", hint: "Ignore resources once stored amount surpass cost of most expensive building, until all missing resources will be crafted. After that works as with 'none' adjustments."},
                                 {val: "buildings", label: "Buildings weightings", hint: "Uses weightings of buildings which are waiting for resources, as multipliers to production weighting. This option requires autoBuild."}];
         addSettingsSelect(currentNode, "productionFactoryWeighting", "Weightings adjustments", "Configures how exactly the resources will be weighted against each other", weightingOptions);
         addSettingsNumber(currentNode, "productionFactoryMinIngredients", "Minimum materials to preserve", "Factory will craft resources only when all required materials above given ratio");
 
-        currentNode.append(`
-          <table style="width:100%">
-            <tr>
-              <th class="has-text-warning" style="width:35%">Resource</th>
-              <th class="has-text-warning" style="width:20%">Enabled</th>
-              <th class="has-text-warning" style="width:20%">Weighting</th>
-              <th class="has-text-warning" style="width:20%">Priority</th>
-              <th style="width:5%"></th>
-            </tr>
-            <tbody id="script_productionTableBodyFactory"></tbody>
-          </table>`);
-
-        let tableBodyNode = $('#script_productionTableBodyFactory');
-        let newTableBodyText = "";
-
-        let productionSettings = Object.values(FactoryManager.Productions);
-
-        for (let i = 0; i < productionSettings.length; i++) {
-            let production = productionSettings[i];
-            newTableBodyText += `<tr><td id="script_factory_${production.resource.id}" style="width:35%"></td><td style="width:20%"></td><td style="width:20%"></td><td style="width:20%"></td><td style="width:5%"></td></tr>`;
-        }
-        tableBodyNode.append($(newTableBodyText));
-
-        // Build all other productions settings rows
-        for (let i = 0; i < productionSettings.length; i++) {
-            let production = productionSettings[i];
-            let productionElement = $('#script_factory_' + production.resource.id);
-
-            productionElement.append(buildTableLabel(production.resource.name));
-
-            productionElement = productionElement.next();
-            addTableToggle(productionElement, "production_" + production.resource.id);
-
-            productionElement = productionElement.next();
-            addTableInput(productionElement, "production_w_" + production.resource.id);
-
-            productionElement = productionElement.next();
-            addTableInput(productionElement, "production_p_" + production.resource.id);
-        }
+        renderSettingsTable(currentNode, schema.tables.factory);
     }
 
     function updateProductionTableFoundry(currentNode) {
         addStandardHeading(currentNode, "Foundry");
+        let schema = getProductionSettingsSchema();
         let weightingOptions = [{val: "none", label: "None", hint: "Use configured weightings with no additional adjustments, craftables with x2 weighting will be crafted two times more intense than with x1, etc."},
                                 {val: "demanded", label: "Prioritize demanded", hint: "Ignore craftables once stored amount surpass cost of most expensive building, until all missing resources will be crafted. After that works as with 'none' adjustments."},
                                 {val: "buildings", label: "Buildings weightings", hint: "Uses weightings of buildings which are waiting for craftables, as multipliers to craftables weighting. This option requires autoBuild."}];
@@ -217,97 +143,19 @@
         addSettingsSelect(currentNode, "productionCraftsmen", "Assign craftsmen", "Configures when workers should be assigned to crafting jobs", assignOptions);
 
 
-        currentNode.append(`
-          <table style="width:100%">
-            <tr>
-              <th class="has-text-warning" style="width:21%" title="Resource name">Resource</th>
-              <th class="has-text-warning" style="width:17%" title="Resource won't ever be crafted with this option disabled">Enabled</th>
-              <th class="has-text-warning" style="width:17%" title="Resource won't use foundry workers for craft with this option disabled">Craftsmen</th>
-              <th class="has-text-warning" style="width:20%" title="Ratio between resources. Script assign craftsmans to resource with lowest 'amount / weighting'. Ignored by manual crafting.">Weighting</th>
-              <th class="has-text-warning" style="width:20%" title="Only craft resource when storage ratio of all required materials above given number. E.g. bricks with 0.1 min materials will be crafted only when cement storage at least 10% filled.">Min Materials</th>
-              <th style="width:5%"></th>
-            </tr>
-            <tbody id="script_productionTableBodyFoundry"></tbody>
-          </table>`);
-
-        let tableBodyNode = $('#script_productionTableBodyFoundry');
-        let newTableBodyText = "";
-
-        for (let i = 0; i < craftablesList.length; i++) {
-            let resource = craftablesList[i];
-            newTableBodyText += `<tr><td id="script_foundry_${resource.id}" style="width:21%"></td><td style="width:17%"></td><td style="width:17%"></td><td style="width:20%"></td><td style="width:20%"></td><td style="width:5%"></td></tr>`;
-        }
-        tableBodyNode.append($(newTableBodyText));
-
-        // Build all other productions settings rows
-        for (let i = 0; i < craftablesList.length; i++) {
-            let resource = craftablesList[i];
-            let productionElement = $('#script_foundry_' + resource.id);
-
-            productionElement.append(buildTableLabel(resource.name));
-
-            // TODO: Make two toggles, for manual craft and foundry
-            productionElement = productionElement.next();
-            addTableToggle(productionElement, "craft" + resource.id);
-
-            productionElement = productionElement.next();
-            addTableToggle(productionElement, "job_" + resource.id);
-
-            productionElement = productionElement.next();
-            if (resource === resources.Scarletite || resource === resources.Quantium) {
-                productionElement.append('<span>Managed</span>');
-            } else {
-                addTableInput(productionElement, "foundry_w_" + resource.id);
-            }
-
-            productionElement = productionElement.next();
-            addTableInput(productionElement, "foundry_p_" + resource.id);
-        }
+        renderSettingsTable(currentNode, schema.tables.foundry);
     }
 
     function updateProductionTableMiningDrone(currentNode) {
         addStandardHeading(currentNode, "Mining Droid");
+        let schema = getProductionSettingsSchema();
 
-        currentNode.append(`
-          <table style="width:100%">
-            <tr>
-              <th class="has-text-warning" style="width:35%">Resource</th>
-              <th class="has-text-warning" style="width:20%"></th>
-              <th class="has-text-warning" style="width:20%">Weighting</th>
-              <th class="has-text-warning" style="width:20%">Priority</th>
-              <th style="width:5%"></th>
-            </tr>
-            <tbody id="script_productionTableBodyMiningDrone"></tbody>
-          </table>`);
-
-        let tableBodyNode = $('#script_productionTableBodyMiningDrone');
-        let newTableBodyText = "";
-
-        let droidProducts = Object.values(DroidManager.Productions);
-
-        for (let i = 0; i < droidProducts.length; i++) {
-            let production = droidProducts[i];
-            newTableBodyText += `<tr><td id="script_droid_${production.resource.id}" style="width:35%"><td style="width:20%"></td><td style="width:20%"></td></td><td style="width:20%"></td><td style="width:5%"></td></tr>`;
-        }
-        tableBodyNode.append($(newTableBodyText));
-
-        // Build all other productions settings rows
-        for (let i = 0; i < droidProducts.length; i++) {
-            let production = droidProducts[i];
-            let productionElement = $('#script_droid_' + production.resource.id);
-
-            productionElement.append(buildTableLabel(production.resource.name));
-
-            productionElement = productionElement.next().next();
-            addTableInput(productionElement, "droid_w_" + production.resource.id);
-
-            productionElement = productionElement.next();
-            addTableInput(productionElement, "droid_pr_" + production.resource.id);
-        }
+        renderSettingsTable(currentNode, schema.tables.miningDroid);
     }
 
     function updateProductionTableReplicator(currentNode) {
         addStandardHeading(currentNode, "Replicator");
+        let schema = getProductionSettingsSchema();
 
         addSettingsToggle(currentNode, 'replicatorAssignGovernorTask', 'Assign governor task', 'If active, the replicator scheduler governor task will be set, the power adjustment will be enabled.')
         addSettingsSelect(currentNode, 'replicatorWeightingMode', 'Weighting mode', 'Replicator only picks from enabled resources with the current highest valid priority (or -1 priority). After that, replicator use is split between resources of identical weighting. Setting configures how that split happens.', [
@@ -316,45 +164,7 @@
             { val: "legacy", hint: "Legacy mode, similar to previous script behavior. Only the resource with the highest weighting is picked. If multiple resources have the same weighting then it will focus exclusively on one of those resources. This mode exists only to give you time to migrate your config to using the priority field.", label: "Legacy (deprecated)" },
         ]);
 
-        currentNode.append(`
-        <table style="width:100%">
-          <tr>
-            <th class="has-text-warning" style="width:35%">Resource</th>
-            <th class="has-text-warning" style="width:20%">Enabled</th>
-            <th class="has-text-warning" style="width:20%">Weighting</th>
-            <th class="has-text-warning" style="width:20%">Priority</th>
-            <th style="width:5%"></th>
-          </tr>
-          <tbody id="script_productionTableBodyReplicator"></tbody>
-        </table>`);
-
-      let tableBodyNode = $('#script_productionTableBodyReplicator');
-      let newTableBodyText = "";
-
-      let replicatorProducts = Object.values(ReplicatorManager.Productions);
-
-      for (let i = 0; i < replicatorProducts.length; i++) {
-          let production = replicatorProducts[i];
-          newTableBodyText += `<tr><td id="script_replicator_${production.resource.id}" style="width:35%"></td><td style="width:20%"></td><td style="width:20%"></td><td style="width:20%"></td><td style="width:5%"></td></tr>`;
-      }
-      tableBodyNode.append($(newTableBodyText));
-
-      // Build all other productions settings rows
-      for (let i = 0; i < replicatorProducts.length; i++) {
-          let production = replicatorProducts[i];
-          let productionElement = $('#script_replicator_' + production.resource.id);
-
-          productionElement.append(buildTableLabel(production.resource.name));
-
-          productionElement = productionElement.next();
-          addTableToggle(productionElement, "replicator_" + production.resource.id);
-
-          productionElement = productionElement.next();
-          addTableInput(productionElement, "replicator_w_" + production.resource.id);
-
-          productionElement = productionElement.next();
-          addTableInput(productionElement, "replicator_p_" + production.resource.id);
-      }
+        renderSettingsTable(currentNode, schema.tables.replicator);
     }
 
     function updateMagicPylon(currentNode) {

@@ -32,6 +32,7 @@ The build/check scripts verify that the ordered parts parse as JavaScript, the f
 - `03d-manager-game-log.js`: script logging helper.
 - `04a1-init-craft-state-races.js`: craft cost updates, state initialization, race initialization.
 - `04a2-init-building-state.js`: building state initialization.
+- `04a3-production-settings-schema.js`: production settings schema.
 - `04b-settings-defaults.js`: default/reset settings for every settings surface.
 - `04c-settings-sync-and-migration.js`: settings state sync, standalone settings, migrations, achievement lookup, queued settings.
 - `05a1-automation-evolution-planet.js`: evolution target, universe, planet generation, and planet selection automation.

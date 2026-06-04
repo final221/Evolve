@@ -5,26 +5,48 @@
         }
 
         let allProducts = Object.values(FactoryManager.Productions);
+        let factoryAdjustments = planFactoryAssignments(allProducts);
+        applyFactoryAssignments(allProducts, factoryAdjustments);
+    }
 
+    function planFactoryAssignments(allProducts = Object.values(FactoryManager.Productions), context = {}) {
+        const manager = context.manager ?? FactoryManager;
+        const activeSettings = context.settings ?? settings;
+        const activeState = context.state ?? state;
+        const activeResources = context.resources ?? resources;
+        const activeGame = context.game ?? game;
+        const getRequiredResourceWeight = context.findRequiredResourceWeight ?? findRequiredResourceWeight;
+        const consumptionBalanceMin = context.consumptionBalanceMin ?? CONSUMPTION_BALANCE_MIN;
+        const tooltips = context.tooltips ?? activeState.tooltips;
+        const setTooltip = (production, value) => {
+            if (tooltips) {
+                tooltips["iFactory" + production.id] = value;
+            }
+        };
+        const appendTooltip = (production, value) => {
+            if (tooltips) {
+                tooltips["iFactory" + production.id] += value;
+            }
+        };
         // Init adjustment, and sort groups by priorities
         let factoryAdjustments = {};
         let priorityList = buildPriorityList(allProducts, (production) => {
-            state.tooltips["iFactory" + production.id] = `Disabled<br>`;
+            setTooltip(production, `Disabled<br>`);
             if (production.unlocked && production.enabled) {
+                factoryAdjustments[production.id] = 0;
                 if (production.weighting > 0) {
                     let priority = production.resource.isDemanded() ? Math.max(production.priority, 100) : production.priority;
                     if (priority !== 0) {
-                        state.tooltips["iFactory" + production.id] = `Low priority<br>`;
+                        setTooltip(production, `Low priority<br>`);
                         return priority;
                     }
                 }
-                factoryAdjustments[production.id] = 0;
             }
             return 0;
         });
 
         let onDemand = false;
-        if (settings.productionFactoryWeighting === "demanded") {
+        if (activeSettings.productionFactoryWeighting === "demanded") {
             let usefulProducts = allProducts.filter(production => production.resource.currentQuantity < production.resource.storageRequired);
             if (usefulProducts.length > 0) {
                 onDemand = true;
@@ -32,15 +54,15 @@
         }
 
         const scalingFactor =
-            settings.productionFactoryWeighting === "buildings" && state.unlockedBuildings.length > 0
-                ? (resource) => (findRequiredResourceWeight(resource) ?? 100) :
-            settings.productionFactoryWeighting === "demanded" && onDemand
+            activeSettings.productionFactoryWeighting === "buildings" && (activeState.unlockedBuildings?.length ?? 0) > 0
+                ? (resource) => (getRequiredResourceWeight(resource) ?? 100) :
+            activeSettings.productionFactoryWeighting === "demanded" && onDemand
                 ? (resource) => (resource.currentQuantity < resource.storageRequired ? 1 : 0) :
             () => 1;
         const scaledWeights = Object.fromEntries(allProducts.map(production => [production.resource.id, production.weighting * scalingFactor(production.resource)]));
 
         // Calculate amount of factories per product
-        let remainingFactories = FactoryManager.maxOperating();
+        let remainingFactories = manager.maxOperating();
         for (let i = 0; i < priorityList.length && remainingFactories > 0; i++) {
             let products = priorityList[i].sort((a, b) => scaledWeights[a.resource.id] - scaledWeights[b.resource.id]);
             while (remainingFactories > 0) {
@@ -49,14 +71,14 @@
 
                 for (let j = products.length - 1; j >= 0 && remainingFactories > 0; j--) {
                     let production = products[j];
-                    state.tooltips["iFactory" + production.id] = ``;
+                    setTooltip(production, ``);
 
                     let calculatedRequiredFactories = Math.min(remainingFactories, Math.max(1, Math.floor(factoriesToDistribute / totalPriorityWeight * scaledWeights[production.resource.id])));
                     let actualRequiredFactories = calculatedRequiredFactories;
 
                     if (!production.resource.isUseful()) {
                         actualRequiredFactories = 0;
-                        state.tooltips["iFactory" + production.id] += `Resource capped<br>`;
+                        appendTooltip(production, `Resource capped<br>`);
                     }
 
                     for (let resourceCost of production.cost) {
@@ -65,22 +87,22 @@
                             continue;
                         }
                         if (!production.resource.isDemanded()) {
-                            if (!settings.useDemanded && usedMaterial.isDemanded()) {
+                            if (!activeSettings.useDemanded && usedMaterial.isDemanded()) {
                                 actualRequiredFactories = 0;
-                                state.tooltips["iFactory" + production.id] += `${usedMaterial.name} is demanded<br>`;
+                                appendTooltip(production, `${usedMaterial.name} is demanded<br>`);
                                 break;
                             }
-                            if (usedMaterial.storageRatio < settings.productionFactoryMinIngredients) {
+                            if (usedMaterial.storageRatio < activeSettings.productionFactoryMinIngredients) {
                                 actualRequiredFactories = 0;
-                                state.tooltips["iFactory" + production.id] += `${usedMaterial.name} under min materials ratio<br>`;
+                                appendTooltip(production, `${usedMaterial.name} under min materials ratio<br>`);
                                 break;
                             }
                         }
                         // No need to preserve minimum income when we have enough storage for 60s of running
                         // We can't demand it here, though, due to order of operations
                         // Elsewhere, prioritizeDemandedResources() demands a few specific materials.
-                        if (usedMaterial.currentQuantity < ((actualRequiredFactories * resourceCost.quantity) * CONSUMPTION_BALANCE_MIN + resourceCost.minRateOfChange) || usedMaterial.isDemanded()) {
-                            let previousCost = FactoryManager.currentProduction(production) * resourceCost.quantity;
+                        if (usedMaterial.currentQuantity < ((actualRequiredFactories * resourceCost.quantity) * consumptionBalanceMin + resourceCost.minRateOfChange) || usedMaterial.isDemanded()) {
+                            let previousCost = manager.currentProduction(production) * resourceCost.quantity;
                             let currentCost = factoryAdjustments[production.id] * resourceCost.quantity;
                             let rate = usedMaterial.rateOfChange + previousCost - currentCost - resourceCost.minRateOfChange;
 
@@ -89,17 +111,17 @@
                             }
                             let affordableAmount = Math.floor(rate / resourceCost.quantity);
                             if (affordableAmount < 1) {
-                                state.tooltips["iFactory" + production.id] += `Too low ${usedMaterial.name} income<br>`;
+                                appendTooltip(production, `Too low ${usedMaterial.name} income<br>`);
                             }
                             actualRequiredFactories = Math.min(actualRequiredFactories, affordableAmount);
                         }
                     }
 
                     // If we're going for bioseed - try to balance neutronium\nanotubes ratio
-                    if (settings.prestigeType === "bioseed" && settings.prestigeBioseedConstruct && production === FactoryManager.Productions.NanoTube) {
-                        let reservedNeutronium = game.global.race['truepath'] ? 500 : 250;
-                        if (resources.Neutronium.currentQuantity < reservedNeutronium) {
-                            state.tooltips["iFactory" + production.id] += `${reservedNeutronium} ${resources.Neutronium.name} reserved<br>`;
+                    if (activeSettings.prestigeType === "bioseed" && activeSettings.prestigeBioseedConstruct && production === (manager.Productions?.NanoTube ?? FactoryManager.Productions.NanoTube)) {
+                        let reservedNeutronium = activeGame.global.race['truepath'] ? 500 : 250;
+                        if (activeResources.Neutronium.currentQuantity < reservedNeutronium) {
+                            appendTooltip(production, `${reservedNeutronium} ${activeResources.Neutronium.name} reserved<br>`);
                             actualRequiredFactories = 0;
                         }
                     }
@@ -121,24 +143,32 @@
             }
         }
 
+        return factoryAdjustments;
+    }
+
+    function applyFactoryAssignments(allProducts, factoryAdjustments, manager = FactoryManager) {
+        applyProductionAssignments(allProducts, factoryAdjustments, manager);
+    }
+
+    function applyProductionAssignments(allProducts, assignments, manager) {
         // First decrease any production so that we have room to increase others
         for (let production of allProducts) {
-            if (factoryAdjustments[production.id] !== undefined) {
-                let deltaAdjustments = factoryAdjustments[production.id] - FactoryManager.currentProduction(production);
+            if (assignments[production.id] !== undefined) {
+                let deltaAdjustments = assignments[production.id] - manager.currentProduction(production);
 
                 if (deltaAdjustments < 0) {
-                    FactoryManager.decreaseProduction(production, deltaAdjustments * -1);
+                    manager.decreaseProduction(production, deltaAdjustments * -1);
                 }
             }
         }
 
         // Increase any production required (if they are 0 then don't do anything with them)
         for (let production of allProducts) {
-            if (factoryAdjustments[production.id] !== undefined) {
-                let deltaAdjustments = factoryAdjustments[production.id] - FactoryManager.currentProduction(production);
+            if (assignments[production.id] !== undefined) {
+                let deltaAdjustments = assignments[production.id] - manager.currentProduction(production);
 
                 if (deltaAdjustments > 0) {
-                    FactoryManager.increaseProduction(production, deltaAdjustments);
+                    manager.increaseProduction(production, deltaAdjustments);
                 }
             }
         }
@@ -151,7 +181,12 @@
         }
 
         let allProducts = Object.values(DroidManager.Productions);
+        let droidAdjustments = planMiningDroidAssignments(allProducts);
+        applyMiningDroidAssignments(allProducts, droidAdjustments);
+    }
 
+    function planMiningDroidAssignments(allProducts = Object.values(DroidManager.Productions), context = {}) {
+        const manager = context.manager ?? DroidManager;
         // Init adjustment, and sort groups by priorities
         let factoryAdjustments = {};
         let priorityList = buildPriorityList(allProducts, (production) => {
@@ -164,7 +199,7 @@
         });
 
         // Calculate amount of factories per product
-        let remainingFactories = DroidManager.maxOperating();
+        let remainingFactories = manager.maxOperating();
         for (let i = 0; i < priorityList.length && remainingFactories > 0; i++) {
             let products = priorityList[i].sort((a, b) => a.weighting - b.weighting);
             while (remainingFactories > 0) {
@@ -197,30 +232,14 @@
             }
         }
         if (remainingFactories > 0) {
-            return;
+            return Object.fromEntries(allProducts.map(production => [production.id, manager.currentProduction(production)]));
         }
 
-        // First decrease any production so that we have room to increase others
-        for (let production of allProducts) {
-            if (factoryAdjustments[production.id] !== undefined) {
-                let deltaAdjustments = factoryAdjustments[production.id] - DroidManager.currentProduction(production);
+        return factoryAdjustments;
+    }
 
-                if (deltaAdjustments < 0) {
-                    DroidManager.decreaseProduction(production, deltaAdjustments * -1);
-                }
-            }
-        }
-
-        // Increase any production required (if they are 0 then don't do anything with them)
-        for (let production of allProducts) {
-            if (factoryAdjustments[production.id] !== undefined) {
-                let deltaAdjustments = factoryAdjustments[production.id] - DroidManager.currentProduction(production);
-
-                if (deltaAdjustments > 0) {
-                    DroidManager.increaseProduction(production, deltaAdjustments);
-                }
-            }
-        }
+    function applyMiningDroidAssignments(allProducts, droidAdjustments, manager = DroidManager) {
+        applyProductionAssignments(allProducts, droidAdjustments, manager);
     }
 
     function autoGraphenePlant() {
