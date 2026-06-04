@@ -1,0 +1,18 @@
+{
+  "name": "evolve-userscript-builder",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "build:min": "node scripts/build.mjs --terser",
+    "check": "node scripts/sync-parts.mjs --check && node scripts/check.mjs",
+    "parts": "node scripts/sync-parts.mjs",
+    "parts:check": "node scripts/sync-parts.mjs --check",
+    "size": "node scripts/size.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.5",
+    "terser": "^5.40.0"
+  }
+}

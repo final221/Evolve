@@ -1,0 +1,523 @@
+    function buildMarketSettings() {
+        let sectionId = "market";
+        let sectionName = "Market";
+
+        let resetFunction = function() {
+            resetMarketSettings(true);
+            updateSettingsFromState();
+            updateMarketSettingsContent();
+
+            resetCheckbox("autoMarket", "autoGalaxyMarket");
+            removeMarketToggles();
+        };
+
+        buildSettingsSection(sectionId, sectionName, resetFunction, updateMarketSettingsContent);
+    }
+
+    function updateMarketSettingsContent() {
+        let currentScrollPosition = document.documentElement.scrollTop || document.body.scrollTop;
+
+        let currentNode = $('#script_marketContent');
+        currentNode.empty().off("*");
+
+        addSettingsNumber(currentNode, "minimumMoney", "Manual trade minimum money", "Minimum money to keep after bulk buying");
+        addSettingsNumber(currentNode, "minimumMoneyPercentage", "Manual trade minimum money percentage", "Minimum percentage of money to keep after bulk buying");
+        addSettingsNumber(currentNode, "tradeRouteMinimumMoneyPerSecond", "Trade minimum money /s", "Uses the highest per second amount of these two values. Will trade for resources until this minimum money per second amount is hit");
+        addSettingsNumber(currentNode, "tradeRouteMinimumMoneyPercentage", "Trade minimum money percentage /s", "Uses the highest per second amount of these two values. Will trade for resources until this percentage of your money per second amount is hit");
+        addSettingsToggle(currentNode, "tradeRouteSellExcess", "Sell excess resources", "With this option enabled script will be allowed to sell resources above amounts needed for constructions or researches, without it script sell only capped resources. As side effect boughts will also be limited to that amounts, to avoid 'buy up to cap -> sell excess' loops.");
+
+        currentNode.append(`
+          <table style="width:100%">
+            <tr>
+              <th class="has-text-warning" colspan="1"></th>
+              <th class="has-text-warning" colspan="4">Manual Trades</th>
+              <th class="has-text-warning" colspan="4">Trade Routes</th>
+              <th class="has-text-warning" colspan="1"></th>
+            </tr>
+            <tr>
+              <th class="has-text-warning" style="width:15%">Resource</th>
+              <th class="has-text-warning" style="width:10%">Buy</th>
+              <th class="has-text-warning" style="width:10%">Ratio</th>
+              <th class="has-text-warning" style="width:10%">Sell</th>
+              <th class="has-text-warning" style="width:10%">Ratio</th>
+              <th class="has-text-warning" style="width:10%">In</th>
+              <th class="has-text-warning" style="width:10%">Away</th>
+              <th class="has-text-warning" style="width:10%">Weighting</th>
+              <th class="has-text-warning" style="width:10%">Priority</th>
+              <th style="width:5%"></th>
+            </tr>
+            <tbody id="script_marketTableBody"></tbody>
+          </table>`);
+
+        let tableBodyNode = $('#script_marketTableBody');
+        let newTableBodyText = "";
+
+        for (let i = 0; i < MarketManager.priorityList.length; i++) {
+            const resource = MarketManager.priorityList[i];
+            newTableBodyText += `<tr value="${resource.id}" class="script-draggable"><td id="script_market_${resource.id}" style="width:15%"></td><td style="width:10%"></td><td style="width:10%"></td><td style="width:10%"></td><td style="width:10%;border-right-width:1px"></td><td style="width:10%"></td><td style="width:10%"></td><td style="width:10%"></td><td style="width:10%"></td><td style="width:5%"><span class="script-lastcolumn"></span></td></tr>`;
+        }
+        tableBodyNode.append($(newTableBodyText));
+
+        // Build all other markets settings rows
+        for (let i = 0; i < MarketManager.priorityList.length; i++) {
+            const resource = MarketManager.priorityList[i];
+            let marketElement = $('#script_market_' + resource.id);
+
+            marketElement.append(buildTableLabel(resource.name));
+
+            marketElement = marketElement.next();
+            addTableToggle(marketElement, "buy" + resource.id);
+
+            marketElement = marketElement.next();
+            addTableInput(marketElement, "res_buy_r_" + resource.id);
+
+            marketElement = marketElement.next();
+            addTableToggle(marketElement, "sell" + resource.id);
+
+            marketElement = marketElement.next();
+            addTableInput(marketElement, "res_sell_r_" + resource.id);
+
+            marketElement = marketElement.next();
+            addTableToggle(marketElement, "res_trade_buy_" + resource.id);
+
+            marketElement = marketElement.next();
+            addTableToggle(marketElement, "res_trade_sell_" + resource.id);
+
+            marketElement = marketElement.next();
+            addTableInput(marketElement, "res_trade_w_" + resource.id);
+
+            marketElement = marketElement.next();
+            addTableInput(marketElement, "res_trade_p_" + resource.id);
+        }
+
+        tableBodyNode.sortable({
+            items: "tr:not(.unsortable)",
+            helper: sorterHelper,
+            update: function() {
+                let marketIds = tableBodyNode.sortable('toArray', {attribute: 'value'});
+                for (let i = 0; i < marketIds.length; i++) {
+                    settingsRaw["res_buy_p_" + marketIds[i]] = i;
+                }
+
+                MarketManager.sortByPriority();
+                updateSettingsFromState();
+            },
+        });
+
+        addStandardHeading(currentNode, "Galaxy Trades");
+        addSettingsNumber(currentNode, "marketMinIngredients", "Minimum materials to preserve", "Galaxy Market will buy resources only when all selling materials above given ratio");
+
+        currentNode.append(`
+          <table style="width:100%">
+            <tr>
+              <th class="has-text-warning" style="width:30%">Buy</th>
+              <th class="has-text-warning" style="width:30%">Sell</th>
+              <th class="has-text-warning" style="width:20%">Weighting</th>
+              <th class="has-text-warning" style="width:20%">Priority</th>
+            </tr>
+            <tbody id="script_marketGalaxyTableBody"></tbody>
+          </table>`);
+
+        tableBodyNode = $('#script_marketGalaxyTableBody');
+        newTableBodyText = "";
+
+        for (let i = 0; i < poly.galaxyOffers.length; i++) {
+            newTableBodyText += `<tr><td id="script_market_galaxy_${i}" style="width:30%"><td style="width:30%"></td></td><td style="width:20%"></td><td style="width:20%"></td></tr>`;
+        }
+        tableBodyNode.append($(newTableBodyText));
+
+        // Build all other productions settings rows
+        for (let i = 0; i < poly.galaxyOffers.length; i++) {
+            let trade = poly.galaxyOffers[i];
+            let buyResource = resources[trade.buy.res];
+            let sellResource = resources[trade.sell.res];
+            let marketElement = $('#script_market_galaxy_' + i);
+
+            marketElement.append(buildTableLabel(buyResource.name, "has-text-success"));
+
+            marketElement = marketElement.next();
+            marketElement.append(buildTableLabel(sellResource.name, "has-text-danger"));
+
+            marketElement = marketElement.next();
+            addTableInput(marketElement, "res_galaxy_w_" + buyResource.id);
+
+            marketElement = marketElement.next();
+            addTableInput(marketElement, "res_galaxy_p_" + buyResource.id);
+       }
+
+        document.documentElement.scrollTop = document.body.scrollTop = currentScrollPosition;
+    }
+
+    function buildStorageSettings() {
+        let sectionId = "storage";
+        let sectionName = "Storage";
+
+        let resetFunction = function() {
+            resetStorageSettings(true);
+            updateSettingsFromState();
+            updateStorageSettingsContent();
+
+            resetCheckbox("autoStorage");
+            removeStorageToggles();
+        };
+
+        buildSettingsSection(sectionId, sectionName, resetFunction, updateStorageSettingsContent);
+    }
+
+    function updateStorageSettingsContent() {
+        let currentScrollPosition = document.documentElement.scrollTop || document.body.scrollTop;
+
+        let currentNode = $('#script_storageContent');
+        currentNode.empty().off("*");
+
+        addSettingsToggle(currentNode, "storageLimitPreMad", "Limit Pre-MAD Storage", "Saves resources and shortens run time by limiting storage pre-MAD");
+        addSettingsToggle(currentNode, "storageSafeReassign", "Reassign only empty storages", "Wait until storage is empty before reassigning containers to another resource, to prevent overflowing and wasting resources");
+        addSettingsToggle(currentNode, "storageAssignExtra", "Assign buffer storage", "Assigns 3% extra strorage above required amounts, ensuring that required quantity will be actually reached, even if other part of script trying to sell\\eject\\switch production, etc. When manual trades enabled applies additional adjust derieved from selling threshold.");
+        addSettingsToggle(currentNode, "storageAssignPart", "Assign partial storage", "When enabled script will be allowed to assign some crates and containers even if resulting storage space won't be enough to build new building. It allows to pre-build stock of resources for further use, but can be potentially dungerous.\nIf script not allowed to reassign non-empty storage it can lock storage in position when stored resources can't be used.\nIf script is allowed to reassign non-empty storage it might waste time producing materials which might need to be disposed.");
+
+        currentNode.append(`
+          <table style="width:100%">
+            <tr>
+              <th class="has-text-warning" style="width:35%">Resource</th>
+              <th class="has-text-warning" style="width:15%">Enabled</th>
+              <th class="has-text-warning" style="width:15%">Store Overflow</th>
+              <th class="has-text-warning" style="width:15%">Min Storage</th>
+              <th class="has-text-warning" style="width:15%">Max Storage</th>
+              <th style="width:5%"></th>
+            </tr>
+            <tbody id="script_storageTableBody"></tbody>
+          </table>`);
+
+        let tableBodyNode = $('#script_storageTableBody');
+        let newTableBodyText = "";
+
+        for (let i = 0; i < StorageManager.priorityList.length; i++) {
+            const resource = StorageManager.priorityList[i];
+            newTableBodyText += `<tr value="${resource.id}" class="script-draggable"><td id="script_storage_${resource.id}" style="width:35%"></td><td style="width:15%"></td><td style="width:15%"></td><td style="width:15%"></td><td style="width:15%"></td><td style="width:5%"><span class="script-lastcolumn"></span></td></tr>`;
+        }
+        tableBodyNode.append($(newTableBodyText));
+
+        // Build all other storages settings rows
+        for (let i = 0; i < StorageManager.priorityList.length; i++) {
+            const resource = StorageManager.priorityList[i];
+            let storageElement = $('#script_storage_' + resource.id);
+
+            storageElement.append(buildTableLabel(resource.name));
+
+            storageElement = storageElement.next();
+            addTableToggle(storageElement, "res_storage" + resource.id);
+
+            storageElement = storageElement.next();
+            addTableToggle(storageElement, "res_storage_o_" + resource.id);
+
+            storageElement = storageElement.next();
+            addTableInput(storageElement, "res_min_store" + resource.id);
+
+            storageElement = storageElement.next();
+            addTableInput(storageElement, "res_max_store" + resource.id);
+        }
+
+        tableBodyNode.sortable({
+            items: "tr:not(.unsortable)",
+            helper: sorterHelper,
+            update: function() {
+                let storageIds = tableBodyNode.sortable('toArray', {attribute: 'value'});
+                for (let i = 0; i < storageIds.length; i++) {
+                    settingsRaw['res_storage_p_' + storageIds[i]] = i;
+                }
+
+                StorageManager.sortByPriority();
+                updateSettingsFromState();
+            },
+        });
+
+        document.documentElement.scrollTop = document.body.scrollTop = currentScrollPosition;
+    }
+
+    function buildTraitSettings() {
+        let sectionId = "trait";
+        let sectionName = "Traits";
+
+        let resetFunction = function() {
+            resetMinorTraitSettings(true);
+            resetMutableTraitSettings(true);
+            updateSettingsFromState();
+            updateTraitSettingsContent();
+
+            resetCheckbox("autoMinorTrait", "autoMutateTraits", "autoGenetics");
+        };
+
+        buildSettingsSection(sectionId, sectionName, resetFunction, updateTraitSettingsContent);
+    }
+
+    function updateImitateWarning() {
+        let race = races[settingsRaw.imitateRace];
+
+        if (race) {
+            const raceAvaialableForImitate = race && game.global.stats.synth[race.id];
+            if (raceAvaialableForImitate) {
+                $("#script_imitate_warning").html(`<span class="has-text-success">You have completed an AI Apocalypse with this race and can imitate it.</span>`);
+            } else {
+                $("#script_imitate_warning").html(`<span class="has-text-danger">Warning! You have NOT completed an AI Apocalypse with this race, and cannot imitate it.</span>`);
+            }
+        } else {
+            $("#script_imitate_warning").empty();
+        }
+    }
+
+    function updateTraitSettingsContent() {
+        let currentScrollPosition = document.documentElement.scrollTop || document.body.scrollTop;
+
+        let currentNode = $('#script_traitContent');
+
+        currentNode.empty().off("*");
+
+        addStandardHeading(currentNode, "Major Traits");
+        let genusOptions = [{val: "ignore", label: "Ignore", hint: "Do not shift genus"},
+                            {val: "none", label: game.loc(`genelab_genus_none`)},
+                            ...Object.values(game.races).map(r => r.type).filter((g, i, a) => g && g !== "organism" && g !== "synthetic" && a.indexOf(g) === i).map(g => (
+                            {val: g, label: game.loc(`genelab_genus_${g}`)}))];
+        addSettingsSelect(currentNode, "shifterGenus", "Mimic genus", "Mimic selected genus, if avaialble. If you want to add some conditional overrides to this setting, keep in mind changing genus redraws game page, frequent changes can drastically harm game performance.", genusOptions);
+
+        const imitateOptions = [{
+                val: "ignore",
+                label: "Ignore",
+                hint: "Do not imitate race. IMPORTANT: script will stall at evolution if none selected"
+            },
+            ...Object.values(races)
+                .map(race => {
+                const label = game.global.stats.synth[race.id] ? race.name : `--${race.name}--`
+
+                return {
+                    val: race.id,
+                    label,
+                    hint: race.desc
+                }
+            })];
+
+        addSettingsSelect(currentNode, "imitateRace", "Imitate race", "Imitate selected race, if available.", imitateOptions).on('change', 'select', function() {
+            state.evolutionTarget = null;
+            updateImitateWarning();
+        });
+
+        currentNode.append(`<div><span id="script_imitate_warning"></span></div>`);
+        updateImitateWarning();
+
+        let shrineOptions = [{val: "any", label: "Any", hint: "Build any Shrines, whenever have resources for it"},
+                             {val: "equally", label: "Equally", hint: "Build all Shrines equally"},
+                             {val: "morale", label: "Morale", hint: "Build only Morale Shrines"},
+                             {val: "metal", label: "Metal", hint: "Build only Metal Shrines"},
+                             {val: "know", label: "Knowledge", hint: "Build only Knowledge Shrines"},
+                             {val: "tax", label: "Tax", hint: "Build only Tax Shrines"},
+                             {val: "rotating", label: "Rotating", hint: "Build Shrines during quarter/full phases for rotating effect shrines"}];                             
+        addSettingsSelect(currentNode, "buildingShrineType", "Magnificent shrine", "Auto Build shrines only at moons of chosen shrine", shrineOptions);
+        addSettingsNumber(currentNode, "slaveIncome", "Minimum income to buy slave", "Script will use Slave Market only when money is capped, or have income above given number");
+
+        let psychicOptions = [{val: "none", label: "Ignore", hint: "Psychic Powers ignored by script"},
+                              {val: "auto", label: "Script Managed", hint: "Performs one of available actions in this order: Capture, Mind Break, Boost Profits, Boost Resource, Boost Attack Power."},
+                               ...["boost", "murder", "assault", "profit", "stun", "mind_break"].map(p =>
+                               ({val: p, label: game.loc(`psychic_${p}_title`), hint: game.loc(`psychic_${p}_desc`)}))];
+        addSettingsSelect(currentNode, "psychicPower", "Psychic Powers", "Activates selected power with full energy. 10 murders required to research advanced powers will be performed automatically, if needed.", psychicOptions);
+
+        let psychicBoost = [{val: "auto", label: "Script Managed", hint: "Resource selected by looking for highest income among ones having enough free storage room."},
+                             ...Object.values(resources).filter(r => r.atomicMass > 0).map(r => ({val: r.id, label: r.title}))];
+        addSettingsSelect(currentNode, "psychicBoostRes", "Boosted Resource", "Resource for Boost Resource Production psychic power.", psychicBoost);
+
+        let wishMinor = [{ val: "none", label: "None", hint: "Disable using minor wishes." },
+            ...wishData.minor.map(w => ({ val: w.id, label: poly.loc('wish_for', [poly.loc(w.loc)]) }))];
+        addSettingsSelect(currentNode, "wishMinor", "Minor Wish", "Uses this minor wish when available.", wishMinor);
+        let wishMajor = [{ val: "none", label: "None", hint: "Disable using major wishes." },
+            ...wishData.major.map(w => ({ val: w.id, label: poly.loc('wish_for', [poly.loc(w.loc)]) }))];
+        addSettingsSelect(currentNode, "wishMajor", "Major Wish", "Uses this major wish when available.", wishMajor);
+
+        addSettingsToggle(currentNode, "jobScalePop", "High Pop job scale", "Auto Job will automatically scaly breakpoints to match population increase");
+
+        addStandardHeading(currentNode, "Ocular Powers");
+        currentNode.append(`
+          <table style="width:100%">
+            <tr>
+              <th class="has-text-warning" style="width:50%">Name</th>
+              <th class="has-text-warning" style="width:25%">Enabled</th>
+              <th class="has-text-warning" style="width:25%">Priority</th>
+            </tr>
+            <tbody id="script_ocularPowersTableBody"></tbody>
+          </table>
+        `);
+        const ocularTableBodyNode = $("#script_ocularPowersTableBody");
+        ocularPowerData.forEach(p => {
+            let tr = $(`<tr><td></td><td></td><td></td></tr>`);
+            tr.appendTo(ocularTableBodyNode);
+
+            let ocularPowerElement = tr.find("td").first();
+            ocularPowerElement.append(buildTableLabel(game.loc(`ocular_${p.id}`), game.loc(`ocular_${p.id}_desc`, p.locParam)));
+
+            ocularPowerElement = ocularPowerElement.next();
+            addTableToggle(ocularPowerElement, `ocularPower_${p.id}`);
+
+            ocularPowerElement = ocularPowerElement.next();
+            addTableInput(ocularPowerElement, `ocularPower_p_${p.id}`);
+        });
+
+        // Minor Traits
+        addStandardHeading(currentNode, "Minor Traits");
+
+        let sequenceOptions = [{val: "none", label: "Ignore", hint: "Ignored by script, managed by game and player"},
+                               {val: "enabled", label: "Enable", hint: "Sequencer enabled"},
+                               {val: "disabled", label: "Disable", hint: "Sequencer disabled"},
+                               {val: "decode", label: "Decode", hint: "Decode genome only, with no further mutations"}];
+        addSettingsSelect(currentNode, "geneticsSequence", "Sequencer", "Manages genome decoding, and mutations", sequenceOptions);
+
+        let boostOptions = [{val: "none", label: "Ignore", hint: "Ignored by script, managed by game and player"},
+                            {val: "enabled", label: "Enable", hint: "Booster enabled"},
+                            {val: "disabled", label: "Disable", hint: "Booster disabled"}];
+        addSettingsSelect(currentNode, "geneticsBoost", "Sequence Booster", "Manages sequencer booster", boostOptions);
+
+        let assembleOptions = [{val: "none", label: "Ignore", hint: "Ignored by script, managed by game and player"},
+                               {val: "enabled", label: "Enable", hint: "Auto Sequencer enable"},
+                               {val: "disabled", label: "Disable", hint: "Auto Sequencer disable"},
+                               {val: "auto", label: "Script Managed", hint: "Gene assembling managed by script, allowing to dump excess knowledge at faster rate, matching income"}];
+        addSettingsSelect(currentNode, "geneticsAssemble", "Auto Sequence", "Manages genome decoding, and mutations", assembleOptions);
+
+        currentNode.append(`
+          <table style="width:100%">
+            <tr>
+              <th class="has-text-warning" style="width:20%">Minor Trait</th>
+              <th class="has-text-warning" style="width:20%">Enabled</th>
+              <th class="has-text-warning" style="width:20%">Weighting</th>
+              <th class="has-text-warning" style="width:40%"></th>
+            </tr>
+            <tbody id="script_minorTraitTableBody"></tbody>
+          </table>`);
+
+        let tableBodyNode = $('#script_minorTraitTableBody');
+        let newTableBodyText = "";
+
+        for (let i = 0; i < MinorTraitManager.priorityList.length; i++) {
+            const trait = MinorTraitManager.priorityList[i];
+            newTableBodyText += `<tr value="${trait.traitName}" class="script-draggable"><td id="script_minorTrait_${trait.traitName}" style="width:20%"></td><td style="width:20%"></td><td style="width:20%"></td><td style="width:40%"><span class="script-lastcolumn"></span></td></tr>`;
+        }
+        tableBodyNode.append($(newTableBodyText));
+
+        // Build all other minorTraits settings rows
+        for (let i = 0; i < MinorTraitManager.priorityList.length; i++) {
+            const trait = MinorTraitManager.priorityList[i];
+            let minorTraitElement = $('#script_minorTrait_' + trait.traitName);
+
+            minorTraitElement.append(buildTableLabel(game.loc("trait_" + trait.traitName + "_name"), game.loc("trait_" + trait.traitName)));
+
+            minorTraitElement = minorTraitElement.next();
+            addTableToggle(minorTraitElement, "mTrait_" + trait.traitName);
+
+            minorTraitElement = minorTraitElement.next();
+            addTableInput(minorTraitElement, "mTrait_w_" + trait.traitName);
+        }
+
+        tableBodyNode.sortable({
+            items: "tr:not(.unsortable)",
+            helper: sorterHelper,
+            update: function() {
+                let minorTraitNames = tableBodyNode.sortable('toArray', {attribute: 'value'});
+                for (let i = 0; i < minorTraitNames.length; i++) {
+                    settingsRaw['mTrait_p_' + minorTraitNames[i]] = i;
+                }
+
+                MinorTraitManager.sortByPriority();
+                updateSettingsFromState();
+            },
+        });
+
+        // Trait Mutations
+
+        addStandardHeading(currentNode, "Trait Mutation");
+        addSettingsToggle(currentNode, "doNotGoBelowPlasmidSoftcap", "Do not go below Plasmid softcap", "Script will not mutate if the number of remaining plasmids or anti plamids would be lower than the softcap (250 + Phage)");
+        addSettingsNumber(currentNode, "minimumPlasmidsToPreserve", "Minimum Plasmids / Anti-Plasmids to preserve", "Script will not mutate if the number of remaining plasmids or anti plamids would be lower than this value");
+
+        currentNode.append(`
+        <table style="width:100%">
+        <tr>
+            <th class="has-text-warning" style="width:30%">Species / Genus</th>
+            <th class="has-text-warning" style="width:25%">Trait</th>
+            <th class="has-text-warning" style="width:10%">Cost</th>
+            <th class="has-text-warning" style="width:10%">Add</th>
+            <th class="has-text-warning" style="width:10%">Remove</th>
+            <th class="has-text-warning" style="width:10%">Reset</th>
+            <th class="has-text-warning" style="width:5%"></th>
+        </tr>
+        <tbody id="script_mutateTraitTableBody"></tbody>
+        </table>`);
+
+        let mutateTraitTableBodyNode = $("#script_mutateTraitTableBody");
+        newTableBodyText = "";
+
+        for (let i = 0; i < MutableTraitManager.priorityList.length; i++) {
+            const trait = MutableTraitManager.priorityList[i];
+            newTableBodyText += `<tr value="${trait.traitName}" class="script-draggable"><td id="script_mutableTrait_${trait.traitName}" style="width:30%"></td><td style="width:25%"></td><td style="width:10%"></td><td style="width:10%"></td><td style="width:10%"></td><td style="width:10%"></td><td style="width:5%"><span class="script-lastcolumn"></span></td></tr>`;
+        }
+        mutateTraitTableBodyNode.append($(newTableBodyText));
+
+        // Build all other mutableTraits settings rows
+        for (let i = 0; i < MutableTraitManager.priorityList.length; i++) {
+            const trait = MutableTraitManager.priorityList[i];
+            let mutableTraitElement = $("#script_mutableTrait_" + trait.traitName);
+
+            mutableTraitElement.append(buildTableLabel(trait.source === "" ? "-" : game.loc((trait.type === "major" ? "race_" : "genelab_genus_") + trait.source), trait.type === "major" ? "Major" : "Genus", trait.type === "genus" ? "has-text-special" : "has-text"));
+
+            mutableTraitElement = mutableTraitElement.next();
+            mutableTraitElement.append(buildTableLabel(trait.name, game.loc("trait_" + trait.traitName), trait.isPositive ? "has-text-success" : "has-text-danger"));
+
+            mutableTraitElement = mutableTraitElement.next();
+            mutableTraitElement.append(buildTableLabel(`${trait.baseCost * 5}`, `${trait.baseCost * 5 * mutationCostMultipliers['custom']['gain']} for Custom${trait.traitName !== 'ooze' ? " and Sludge" : ""}`));
+
+            mutableTraitElement = mutableTraitElement.next();
+            if (trait.isGainable()) { // TODO check if beast_of_burden can be gained by other races during winter event.
+                addTableToggle(mutableTraitElement, "mutableTrait_gain_" + trait.traitName);
+            }
+
+            mutableTraitElement = mutableTraitElement.next();
+            addTableToggle(mutableTraitElement, "mutableTrait_purge_" + trait.traitName);
+
+            if (trait.isGainable()) {
+                makeToggleSwitchesMutuallyExclusive($(".script_mutableTrait_gain_" + trait.traitName), "mutableTrait_gain_" + trait.traitName, $(".script_mutableTrait_purge_" + trait.traitName), "mutableTrait_purge_" + trait.traitName);
+            }
+
+            mutableTraitElement = mutableTraitElement.next();
+            if (poly.neg_roll_traits.includes(trait.traitName)) {
+                addTableToggle(mutableTraitElement, "mutableTrait_reset_" + trait.traitName);
+            }
+        }
+
+        mutateTraitTableBodyNode.sortable({
+            items: "tr:not(.unsortable)",
+            helper: sorterHelper,
+            update: function() {
+                let mutableTraitNames = mutateTraitTableBodyNode.sortable("toArray", {attribute: "value"});
+                for (let i = 0; i < mutableTraitNames.length; i++) {
+                    settingsRaw["mutableTrait_p_" + mutableTraitNames[i]] = i;
+                }
+
+                MutableTraitManager.sortByPriority();
+                updateSettingsFromState();
+            },
+        });
+
+        document.documentElement.scrollTop = document.body.scrollTop = currentScrollPosition;
+    }
+
+    function makeToggleSwitchesMutuallyExclusive(switch1, settingsKey1, switch2, settingsKey2)
+    {
+        switch1.on("change", function() {
+            if (switch1.prop("checked") && switch2.prop("checked")) {
+                switch2.prop("checked", false);
+                settingsRaw[settingsKey2] = false;
+                updateSettingsFromState();
+            }
+        });
+        switch2.on("change", function() {
+            if (switch1.prop("checked") && switch2.prop("checked")) {
+                switch1.prop("checked", false);
+                settingsRaw[settingsKey1] = false;
+                updateSettingsFromState();
+            }
+        });
+    }
+
