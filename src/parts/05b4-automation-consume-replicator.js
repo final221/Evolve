@@ -71,26 +71,16 @@
         let allProducts = Object.values(ReplicatorManager.Productions);
 
         // Sort groups by priorities
-        let priorityGroups = {};
-        for (let i = 0; i < allProducts.length; i++) {
-            let production = allProducts[i];
+        let priorityList = buildPriorityList(allProducts, (production) => {
             if (production.unlocked && production.enabled) {
                 if (production.weighting > 0) {
                     let priority = production.resource.isDemanded() ? Math.max(production.priority, 100) : production.priority;
                     priority *= !production.resource.isUseful() ? 0 : production.priority;
-                    if (priority !== 0) {
-                        priorityGroups[priority] = priorityGroups[priority] ?? [];
-                        priorityGroups[priority].push(production);
-                    }
+                    return priority;
                 }
             }
-        }
-
-        let priorityList = Object.keys(priorityGroups).sort((a, b) => b - a).map(key => priorityGroups[key]);
-        if (priorityGroups["-1"] && priorityList.length > 1) {
-            priorityList.splice(priorityList.indexOf(priorityGroups["-1"], 1));
-            priorityList[0].push(...priorityGroups["-1"]);
-        }
+            return 0;
+        });
 
         // For some situation where resource A has 100 weighting and resource B has 200 weighting, while both have 1000 quantity,
         // we want to spend 2x as much "time" on resource B in some way.

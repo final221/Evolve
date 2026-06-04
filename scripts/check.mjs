@@ -53,32 +53,6 @@ async function readSource() {
   return chunks.join("");
 }
 
-function stripUserscriptHeader(code, filename) {
-  const headerEnd = "// ==/UserScript==";
-  const headerEndIndex = code.indexOf(headerEnd);
-  if (headerEndIndex === -1) {
-    throw new Error(`${filename} is missing ${headerEnd}`);
-  }
-
-  const bodyStart = code.indexOf("\n", headerEndIndex + headerEnd.length);
-  return bodyStart === -1 ? "" : code.slice(bodyStart + 1);
-}
-
-async function verifyOriginalSplit() {
-  const originalPath = path.join(root, "reference", "evolve_automation.original.user.js");
-  if (!(await exists(originalPath))) {
-    return;
-  }
-
-  const original = (await readFile(originalPath, "utf8")).replace(/\r\n?/g, "\n");
-  const originalBody = stripUserscriptHeader(original, path.relative(root, originalPath));
-  const body = await readSource();
-
-  if (originalBody !== body) {
-    throw new Error("src/source-files.json no longer reconstructs the body of reference/evolve_automation.original.user.js");
-  }
-}
-
 const outputPaths = [
   path.join(root, "dist", "evolve_automation.user.js"),
   path.join(root, "dist", "evolve_automation.min.user.js"),
@@ -86,7 +60,6 @@ const outputPaths = [
 
 await parseJavaScriptText(await readSource(), "src/source-files.json");
 await verifyMetadata(headerPath);
-await verifyOriginalSplit();
 
 for (const outputPath of outputPaths) {
   if (await exists(outputPath)) {

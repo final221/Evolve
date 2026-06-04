@@ -82,25 +82,16 @@
         }
 
          // Init adjustment, and sort groups by priorities
-        let priorityGroups = {};
         let tradeAdjustments = {};
-        for (let i = 0; i < poly.galaxyOffers.length; i++) {
-            let trade = poly.galaxyOffers[i];
+        let priorityList = buildPriorityList(poly.galaxyOffers, (trade) => {
             let buyResource = resources[trade.buy.res];
+            let priority = 0;
             if (buyResource.galaxyMarketWeighting > 0) {
-                let priority = buyResource.isDemanded() ? Math.max(buyResource.galaxyMarketPriority, 100) : buyResource.galaxyMarketPriority;
-                if (priority !== 0) {
-                    priorityGroups[priority] = priorityGroups[priority] ?? [];
-                    priorityGroups[priority].push(trade);
-                }
+                priority = buyResource.isDemanded() ? Math.max(buyResource.galaxyMarketPriority, 100) : buyResource.galaxyMarketPriority;
             }
             tradeAdjustments[buyResource.id] = 0;
-        }
-        let priorityList = Object.keys(priorityGroups).sort((a, b) => b - a).map(key => priorityGroups[key]);
-        if (priorityGroups["-1"] && priorityList.length > 1) {
-            priorityList.splice(priorityList.indexOf(priorityGroups["-1"], 1));
-            priorityList[0].push(...priorityGroups["-1"]);
-        }
+            return priority;
+        });
 
         // Calculate amount of factories per product
         let remainingFreighters = GalaxyTradeManager.maxOperating();

@@ -10,7 +10,7 @@ This workspace turns the large Evolve Tampermonkey script into a buildable users
 - `dist/evolve_automation.user.js` is the generated userscript to install in Tampermonkey.
 - `dist/evolve_automation.min.user.js` is an optional stronger-minification artifact.
 
-`reference/evolve_automation.original.user.js` is the original imported single-file script kept as a body reference during the first migration step. Fork-owned metadata lives in `src/userscript-header.txt`.
+`reference/evolve_automation.original.user.js` is the original imported single-file script kept as a historical comparison point. Fork-owned metadata lives in `src/userscript-header.txt`.
 
 ## Commands
 

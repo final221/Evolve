@@ -7,28 +7,21 @@
         let allProducts = Object.values(FactoryManager.Productions);
 
         // Init adjustment, and sort groups by priorities
-        let priorityGroups = {};
         let factoryAdjustments = {};
-        for (let i = 0; i < allProducts.length; i++) {
-            let production = allProducts[i];
+        let priorityList = buildPriorityList(allProducts, (production) => {
             state.tooltips["iFactory" + production.id] = `Disabled<br>`;
             if (production.unlocked && production.enabled) {
                 if (production.weighting > 0) {
                     let priority = production.resource.isDemanded() ? Math.max(production.priority, 100) : production.priority;
                     if (priority !== 0) {
-                        priorityGroups[priority] = priorityGroups[priority] ?? [];
-                        priorityGroups[priority].push(production);
                         state.tooltips["iFactory" + production.id] = `Low priority<br>`;
+                        return priority;
                     }
                 }
                 factoryAdjustments[production.id] = 0;
             }
-        }
-        let priorityList = Object.keys(priorityGroups).sort((a, b) => b - a).map(key => priorityGroups[key]);
-        if (priorityGroups["-1"] && priorityList.length > 1) {
-            priorityList.splice(priorityList.indexOf(priorityGroups["-1"], 1));
-            priorityList[0].push(...priorityGroups["-1"]);
-        }
+            return 0;
+        });
 
         let onDemand = false;
         if (settings.productionFactoryWeighting === "demanded") {
@@ -160,24 +153,15 @@
         let allProducts = Object.values(DroidManager.Productions);
 
         // Init adjustment, and sort groups by priorities
-        let priorityGroups = {};
         let factoryAdjustments = {};
-        for (let i = 0; i < allProducts.length; i++) {
-            let production = allProducts[i];
+        let priorityList = buildPriorityList(allProducts, (production) => {
+            let priority = 0;
             if (production.weighting > 0) {
-                let priority = production.resource.isDemanded() ? Math.max(production.priority, 100) : production.priority;
-                if (priority !== 0) {
-                    priorityGroups[priority] = priorityGroups[priority] ?? [];
-                    priorityGroups[priority].push(production);
-                }
+                priority = production.resource.isDemanded() ? Math.max(production.priority, 100) : production.priority;
             }
             factoryAdjustments[production.id] = 0;
-        }
-        let priorityList = Object.keys(priorityGroups).sort((a, b) => b - a).map(key => priorityGroups[key]);
-        if (priorityGroups["-1"] && priorityList.length > 1) {
-            priorityList.splice(priorityList.indexOf(priorityGroups["-1"], 1));
-            priorityList[0].push(...priorityGroups["-1"]);
-        }
+            return priority;
+        });
 
         // Calculate amount of factories per product
         let remainingFactories = DroidManager.maxOperating();

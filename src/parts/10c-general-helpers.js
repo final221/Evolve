@@ -47,6 +47,28 @@
         return arr.reduce((sum, val) => sum + val) / arr.length;
     }
 
+    function buildPriorityList(items, getPriority) {
+        let priorityGroups = {};
+
+        for (let item of items) {
+            let priority = getPriority(item);
+            if (priority === undefined || priority === null || priority === 0) {
+                continue;
+            }
+
+            priorityGroups[priority] = priorityGroups[priority] ?? [];
+            priorityGroups[priority].push(item);
+        }
+
+        let priorityList = Object.keys(priorityGroups).sort((a, b) => b - a).map(key => priorityGroups[key]);
+        if (priorityGroups["-1"] && priorityList.length > 1) {
+            priorityList.splice(priorityList.indexOf(priorityGroups["-1"]), 1);
+            priorityList[0].push(...priorityGroups["-1"]);
+        }
+
+        return priorityList;
+    }
+
     // Script hooked to fastTick fired 4 times per second
     function ticksPerSecond() {
         return 4 / settings.tickRate / (game.global.settings.at ? 2 : 1);

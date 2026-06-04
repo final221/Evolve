@@ -94,11 +94,9 @@
         let minimumAllowedMoneyPerSecond = Math.min(resources.Money.maxQuantity - resources.Money.currentQuantity, Math.max(settings.tradeRouteMinimumMoneyPerSecond, settings.tradeRouteMinimumMoneyPercentage / 100 * currentMoneyPerSecond));
 
         // Init adjustment, and sort groups by priorities
-        let priorityGroups = {};
-        for (let i = 0; i < tradableResources.length; i++) {
-            let resource = tradableResources[i];
+        let priorityList = buildPriorityList(tradableResources, (resource) => {
             if (!resource.autoTradeBuyEnabled) {
-                continue;
+                return 0;
             }
             requiredTradeRoutes[resource.id] = requiredTradeRoutes[resource.id] ?? 0;
 
@@ -106,7 +104,7 @@
                 || (settings.tradeRouteSellExcess
                   ? resource.usefulRatio > 0.99
                   : resource.storageRatio > 0.98)) {
-                continue;
+                return 0;
             }
 
             let priority = resource.autoTradePriority;
@@ -118,19 +116,11 @@
                 }
             } else if ((priority < 100 && priority !== -1) && resources.Money.isDemanded()) {
                 // Don't buy resources with low priority when money is demanded
-                continue;
+                return 0;
             }
 
-            if (priority !== 0) {
-                priorityGroups[priority] = priorityGroups[priority] ?? [];
-                priorityGroups[priority].push(resource);
-            }
-        }
-        let priorityList = Object.keys(priorityGroups).sort((a, b) => b - a).map(key => priorityGroups[key]);
-        if (priorityGroups["-1"] && priorityList.length > 1) {
-            priorityList.splice(priorityList.indexOf(priorityGroups["-1"], 1));
-            priorityList[0].push(...priorityGroups["-1"]);
-        }
+            return priority;
+        });
 
         // Calculate amount of routes per resource
         let resSorter = (a, b) => ((requiredTradeRoutes[a.id] / a.autoTradeWeighting) - (requiredTradeRoutes[b.id] / b.autoTradeWeighting)) || b.autoTradeWeighting - a.autoTradeWeighting;

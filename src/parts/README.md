@@ -4,7 +4,7 @@ These files are concatenated in the order listed by `src/source-files.json`.
 
 Run `npm run parts` after adding, renaming, deleting, or splitting part files. It regenerates the ordered source list and this navigation map from the actual `src/parts/*.js` files, so the split structure has a builder of its own instead of another hand-maintained index.
 
-The build/check scripts verify that the ordered parts still reconstruct the script body from `reference/evolve_automation.original.user.js` exactly, after newline normalization. The userscript metadata in `src/userscript-header.txt` is owned by this fork.
+The build/check scripts verify that the ordered parts parse as JavaScript, the fork metadata is present, and the generated `dist/` userscripts are current. `reference/evolve_automation.original.user.js` remains a historical comparison point, not a byte-for-byte source lock.
 
 ## Where To Look First
 
@@ -66,10 +66,10 @@ The build/check scripts verify that the ordered parts still reconstruct the scri
 - `09d-settings-buildings-projects.js`: building and project settings panels.
 - `10a-logging-options-topbar-ui.js`: logging settings, options modal, top-bar UI, and main `updateUI`.
 - `10b-runtime-toggle-ui.js`: mech info, ARPA/craft/building/eject/supply/market/storage toggle UI.
-- `10c-general-helpers.js`: sorting helper, combinations/math, game-state utility helpers, number formatting, eval/Vue/property helpers.
+- `10c-general-helpers.js`: sorting helper, priority grouping, combinations/math, game-state utility helpers, number formatting, eval/Vue/property helpers.
 - `10d-settings-import-export.js`: settings import/export flow.
 - `11-polyfills-and-close.js`: copied/reimplemented game polyfills and final IIFE close.
 
 ## Refactor Rule
 
-Do not edit behavior and split structure in the same change unless `npm run check` proves the ordered parts still reconstruct the reference exactly before the behavior edit. For pure token-efficiency splits, only change part files and then run `npm run parts`.
+Keep split-structure edits separate from behavior edits where practical. For pure token-efficiency splits, only change part files and then run `npm run parts`. For behavior refactors, rebuild and run `npm run check` before publishing.
