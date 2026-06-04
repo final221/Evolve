@@ -1,15 +1,13 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { transform } from "esbuild";
-import { minify } from "terser";
 
 const root = process.cwd();
 const headerPath = path.join(root, "src", "userscript-header.txt");
 const sourceFilesPath = path.join(root, "src", "source-files.json");
 const outDir = path.join(root, "dist");
-const useTerser = process.argv.includes("--terser");
 const checkOnly = process.argv.includes("--check");
-const outFile = useTerser ? "evolve_automation.min.user.js" : "evolve_automation.user.js";
+const outFile = "evolve_automation.user.js";
 const outPath = path.join(outDir, outFile);
 
 function normalizeNewlines(value) {
@@ -45,25 +43,7 @@ async function buildBody(source) {
     legalComments: "none",
   });
 
-  if (!useTerser) {
-    return esbuildResult.code;
-  }
-
-  const terserResult = await minify(esbuildResult.code, {
-    compress: {
-      passes: 2,
-    },
-    mangle: false,
-    format: {
-      comments: false,
-    },
-  });
-
-  if (!terserResult.code) {
-    throw new Error("Terser returned empty output");
-  }
-
-  return terserResult.code;
+  return esbuildResult.code;
 }
 
 const header = normalizeNewlines(await readFile(headerPath, "utf8"));
@@ -82,14 +62,14 @@ if (checkOnly) {
     current = await readFile(outPath, "utf8");
   } catch (error) {
     if (error.code === "ENOENT") {
-      throw new Error(`${path.relative(root, outPath)} is missing. Run npm run build${useTerser ? ":min" : ""}.`);
+      throw new Error(`${path.relative(root, outPath)} is missing. Run npm run build.`);
     }
 
     throw error;
   }
 
   if (normalizeNewlines(current) !== output) {
-    throw new Error(`${path.relative(root, outPath)} is out of date. Run npm run build${useTerser ? ":min" : ""}.`);
+    throw new Error(`${path.relative(root, outPath)} is out of date. Run npm run build.`);
   }
 
   console.log(`${path.relative(root, outPath)} is up to date`);

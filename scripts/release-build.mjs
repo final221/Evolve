@@ -22,4 +22,3 @@ if (!allowedBumps.has(bump)) {
 
 run(["scripts/bump-version.mjs", bump]);
 run(["scripts/build.mjs"]);
-run(["scripts/build.mjs", "--terser"]);

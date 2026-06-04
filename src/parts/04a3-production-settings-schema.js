@@ -176,9 +176,11 @@
     function applySettingsSchemaDefaults(def, schema) {
         Object.assign(def, schema.defaults);
         for (let group of schema.defaultGroups ?? []) {
-            for (let row of group.rows()) {
+            let rows = group.rows();
+            for (let index = 0; index < rows.length; index++) {
+                let row = rows[index];
                 for (let setting of group.settings) {
-                    def[setting.key(row)] = typeof setting.value === "function" ? setting.value(row) : setting.value;
+                    def[setting.key(row, index)] = typeof setting.value === "function" ? setting.value(row, index) : setting.value;
                 }
             }
         }
@@ -186,11 +188,11 @@
 
     function renderSettingsTable(parentNode, tableConfig) {
         let rows = tableConfig.rows();
-        let headers = tableConfig.columns.map(column => {
+        let headers = tableConfig.headerHtml ?? `<tr>${tableConfig.columns.map(column => {
             let title = column.title ? ` title="${column.title}"` : "";
             let color = column.color ? ` class="${column.color}"` : "";
             return `<th${color}${title} style="width:${column.width}">${column.header ?? ""}</th>`;
-        }).join("");
+        }).join("")}</tr>`;
         let bodyRows = rows.map((row, rowIndex) => {
             let rowId = tableConfig.rowId?.(row, rowIndex);
             let rowValue = tableConfig.rowValue?.(row, rowIndex);
@@ -202,14 +204,15 @@
             let prefix = attributes ? `<tr ${attributes}>` : "<tr>";
             let cells = tableConfig.columns.map((column, columnIndex) => {
                 let id = rowId !== undefined && columnIndex === 0 ? ` id="${tableConfig.bodyId}_${rowId}"` : "";
-                return `<td${id} style="width:${column.width}"></td>`;
+                let style = `width:${column.width}${column.style ? ";" + column.style : ""}`;
+                return `<td${id} style="${style}"></td>`;
             }).join("");
             return `${prefix}${cells}</tr>`;
         }).join("");
 
         parentNode.append(`
           <table style="width:100%">
-            <tr>${headers}</tr>
+            ${headers}
             <tbody id="${tableConfig.bodyId}">${bodyRows}</tbody>
           </table>`);
 

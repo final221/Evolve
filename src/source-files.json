@@ -24,6 +24,7 @@
   "src/parts/04a1-init-craft-state-races.js",
   "src/parts/04a2-init-building-state.js",
   "src/parts/04a3-production-settings-schema.js",
+  "src/parts/04a4-market-storage-settings-schema.js",
   "src/parts/04b-settings-defaults.js",
   "src/parts/04c-settings-sync-and-migration.js",
   "src/parts/05a1-automation-evolution-planet.js",

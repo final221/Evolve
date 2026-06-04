@@ -8,7 +8,6 @@ This workspace turns the large Evolve Tampermonkey script into a buildable users
 - `src/source-files.json` lists the ordered script body chunks.
 - `src/parts/` contains the current script body, split along top-level sections.
 - `dist/evolve_automation.user.js` is the generated userscript to install in Tampermonkey.
-- `dist/evolve_automation.min.user.js` is an optional stronger-minification artifact.
 
 `reference/evolve_automation.original.user.js` is the original imported single-file script kept as a historical comparison point. Fork-owned metadata lives in `src/userscript-header.txt`.
 
@@ -21,11 +20,10 @@ npm run build
 npm run build -- --bump minor
 npm run build -- --bump none
 npm run build:check
-npm run build:min
 npm run size
 ```
 
-`npm run build` is the release build. It bumps `src/userscript-header.txt` and `package.json` once, then rebuilds both committed userscript artifacts in `dist/` from that same version. The default bump is `patch`; use `-- --bump minor`, `-- --bump major`, or `-- --bump none` when the change needs a different policy. The low-level `npm run build:script` command rebuilds only `dist/evolve_automation.user.js` without changing the version.
+`npm run build` is the release build. It bumps `src/userscript-header.txt` and `package.json` once, then rebuilds the committed userscript artifact in `dist/` from that same version. The default bump is `patch`; use `-- --bump minor`, `-- --bump major`, or `-- --bump none` when the change needs a different policy. The low-level `npm run build:script` command rebuilds `dist/evolve_automation.user.js` without changing the version.
 
 Version bump policy:
 
@@ -36,9 +34,11 @@ Version bump policy:
 
 Use `src/parts/README.md` as the navigation map before opening script chunks. Use `src/parts/SURFACES.md` when a change spans data, managers, automation, settings, and UI.
 
+Use `src/parts/AUDIT.md` for the review model. The source parts are the audit surface; `dist/evolve_automation.user.js` is generated install output and is intentionally whitespace-collapsed by the build.
+
 Run `npm run parts` after adding, renaming, deleting, or further splitting files in `src/parts/`. This regenerates `src/source-files.json` and `src/parts/README.md` from the actual part files, keeping the builder's own index from becoming another manual maintenance problem. `npm run check` also verifies that this generated index is current.
 
-The `dist/` userscript files are committed intentionally because Tampermonkey updates from the GitHub raw `dist/evolve_automation.user.js` URL. Run `npm run build` before publishing changes that should reach installed scripts. `npm run check` includes `npm run build:check` so stale generated output fails verification and also checks that `package.json`, `src/userscript-header.txt`, and both `dist/` files use the same userscript version.
+The `dist/` userscript file is committed intentionally because Tampermonkey updates from the GitHub raw `dist/evolve_automation.user.js` URL. Run `npm run build` before publishing changes that should reach installed scripts. `npm run check` includes `npm run build:check` so stale generated output fails verification and also checks that `package.json`, `src/userscript-header.txt`, and `dist/evolve_automation.user.js` use the same userscript version.
 
 ## Next Refactor Steps
 

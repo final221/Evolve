@@ -148,85 +148,20 @@
     }
 
     function resetMarketSettings(reset) {
-        MarketManager.priorityList = Object.values(resources).filter(r => r.is.tradable).reverse();
-        let def = {
-            autoMarket: false,
-            autoGalaxyMarket: false,
-            tradeRouteMinimumMoneyPerSecond: 500,
-            tradeRouteMinimumMoneyPercentage: 50,
-            tradeRouteSellExcess: true,
-            minimumMoney: 0,
-            minimumMoneyPercentage: 0,
-            marketMinIngredients: 0,
-        }
-
-        for (let i = 0; i < MarketManager.priorityList.length; i++) {
-            let resource = MarketManager.priorityList[i];
-            let id = resource.id;
-
-            def['res_buy_p_' + id] = i; // marketPriority
-            def['buy' + id] = false; // autoBuyEnabled
-            def['res_buy_r_' + id] = 0.5; // autoBuyRatio
-            def['sell' + id] = false; // autoSellEnabled
-            def['res_sell_r_' + id] = 0.9; // autoSellRatio
-            def['res_trade_buy_' + id] = true; // autoTradeBuyEnabled
-            def['res_trade_sell_' + id] = true; // autoTradeSellEnabled
-            def['res_trade_w_' + id] = 1; // autoTradeWeighting
-            def['res_trade_p_' + id] = 1; // autoTradePriority
-        }
-
-        const setTradePriority = (priority, items) =>
-          items.forEach(id => def['res_trade_p_' + id] = priority);
-
-        setTradePriority(1, ["Food"]);
-        setTradePriority(2, ["Helium_3", "Uranium", "Oil", "Coal"]);
-        setTradePriority(3, ["Stone", "Chrysotile", "Lumber"]);
-        setTradePriority(4, ["Aluminium", "Iron", "Copper"]);
-        setTradePriority(5, ["Furs"]);
-        setTradePriority(6, ["Cement"]);
-        setTradePriority(7, ["Steel"]);
-        setTradePriority(8, ["Titanium"]);
-        setTradePriority(9, ["Polymer", "Alloy"]);
-        setTradePriority(10, ["Iridium"]);
-        setTradePriority(-1, ["Crystal"]);
-
-        for (let i = 0; i < poly.galaxyOffers.length; i++) {
-            let resource = resources[poly.galaxyOffers[i].buy.res];
-            let id = resource.id;
-
-            def['res_galaxy_w_' + id] = 1; // galaxyMarketWeighting
-            def['res_galaxy_p_' + id] = i+1; // galaxyMarketPriority
-        }
+        let schema = getMarketStorageSettingsSchema().market;
+        MarketManager.priorityList = schema.priorityRows();
+        let def = {};
+        applySettingsSchemaDefaults(def, schema);
 
         applySettings(def, reset);
         MarketManager.sortByPriority();
     }
 
     function resetStorageSettings(reset) {
-        StorageManager.priorityList = Object.values(resources).filter(r => r.hasStorage()).reverse();
-        let def = {
-            autoStorage: false,
-            storageLimitPreMad: true,
-            storageSafeReassign: true,
-            storageAssignExtra: true,
-            storageAssignPart: false
-        }
-
-        for (let i = 0; i < StorageManager.priorityList.length; i++) {
-            let resource = StorageManager.priorityList[i];
-            let id = resource.id;
-
-            def['res_storage' + id] = true; // autoStorageEnabled
-            def['res_storage_p_' + id] = i; // storagePriority
-            def['res_storage_o_' + id] = false; // storeOverflow
-            def['res_min_store' + id] = 1; // minStorage
-            def['res_max_store' + id] = -1; // maxStorage
-        }
-
-        // Enable overflow for endgame resources
-        def['res_storage_o_' + resources.Orichalcum.id] = true;
-        def['res_storage_o_' + resources.Vitreloy.id] = true;
-        def['res_storage_o_' + resources.Bolognium.id] = true;
+        let schema = getMarketStorageSettingsSchema().storage;
+        StorageManager.priorityList = schema.priorityRows();
+        let def = {};
+        applySettingsSchemaDefaults(def, schema);
 
         applySettings(def, reset);
         StorageManager.sortByPriority();

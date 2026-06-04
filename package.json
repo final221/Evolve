@@ -1,13 +1,12 @@
 {
   "name": "evolve-userscript-builder",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "type": "module",
   "scripts": {
     "build": "node scripts/release-build.mjs",
     "build:script": "node scripts/build.mjs",
-    "build:check": "node scripts/build.mjs --check && node scripts/build.mjs --terser --check",
-    "build:min": "node scripts/build.mjs --terser",
+    "build:check": "node scripts/build.mjs --check",
     "check": "node scripts/sync-parts.mjs --check && node scripts/check.mjs && npm run check:production && npm run build:check",
     "check:production": "node scripts/check-settings-profile.mjs && node scripts/check-production-planners.mjs",
     "parts": "node scripts/sync-parts.mjs",
@@ -15,7 +14,6 @@
     "size": "node scripts/size.mjs"
   },
   "devDependencies": {
-    "esbuild": "^0.25.5",
-    "terser": "^5.40.0"
+    "esbuild": "^0.25.5"
   }
 }

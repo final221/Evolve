@@ -71,7 +71,6 @@ async function readSource() {
 
 const outputPaths = [
   path.join(root, "dist", "evolve_automation.user.js"),
-  path.join(root, "dist", "evolve_automation.min.user.js"),
 ];
 
 const header = await readFile(headerPath, "utf8");

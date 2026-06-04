@@ -29,7 +29,23 @@ const expectedProductionKeys = {
   replicatorWeightingMode: "string",
 };
 
-for (const [key, type] of Object.entries(expectedProductionKeys)) {
+const expectedMarketStorageKeys = {
+  autoMarket: "boolean",
+  autoGalaxyMarket: "boolean",
+  tradeRouteMinimumMoneyPerSecond: "number",
+  tradeRouteMinimumMoneyPercentage: "number",
+  tradeRouteSellExcess: "boolean",
+  minimumMoney: "number",
+  minimumMoneyPercentage: "number",
+  marketMinIngredients: "number",
+  autoStorage: "boolean",
+  storageLimitPreMad: "boolean",
+  storageSafeReassign: "boolean",
+  storageAssignExtra: "boolean",
+  storageAssignPart: "boolean",
+};
+
+for (const [key, type] of Object.entries({...expectedProductionKeys, ...expectedMarketStorageKeys})) {
   assert.equal(typeof profile[key], type, `${key} must be present as ${type}`);
 }
 
@@ -50,6 +66,22 @@ const tableKeys = [
   "replicator_Nano_Tube",
   "replicator_w_Nano_Tube",
   "replicator_p_Nano_Tube",
+  "buyFood",
+  "res_buy_p_Food",
+  "res_buy_r_Food",
+  "sellFood",
+  "res_sell_r_Food",
+  "res_trade_buy_Food",
+  "res_trade_sell_Food",
+  "res_trade_w_Food",
+  "res_trade_p_Food",
+  "res_galaxy_w_Deuterium",
+  "res_galaxy_p_Deuterium",
+  "res_storageOrichalcum",
+  "res_storage_p_Orichalcum",
+  "res_storage_o_Orichalcum",
+  "res_min_storeOrichalcum",
+  "res_max_storeOrichalcum",
 ];
 
 for (const key of tableKeys) {
