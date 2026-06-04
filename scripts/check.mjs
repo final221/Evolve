@@ -6,10 +6,11 @@ const root = process.cwd();
 const headerPath = path.join(root, "src", "userscript-header.txt");
 const sourceFilesPath = path.join(root, "src", "source-files.json");
 const requiredMetadata = [
-  "// @name         Evolve",
-  "// @version      3.3.1.147",
-  "// @downloadURL  https://github.com/Vollch/Evolve-Automation/raw/master/evolve_automation.user.js",
-  "// @updateURL    https://github.com/Vollch/Evolve-Automation/raw/master/evolve_automation.meta.js",
+  "// @name         Evolve 2.0",
+  "// @version      0.1.0",
+  "// @downloadURL  https://raw.githubusercontent.com/final221/Evolve/main/dist/evolve_automation.user.js",
+  "// @updateURL    https://raw.githubusercontent.com/final221/Evolve/main/dist/evolve_automation.user.js",
+  "// @author       Fynn",
   "// @match        https://pmotschmann.github.io/Evolve/",
   "// @require      https://code.jquery.com/jquery-3.7.1.min.js",
   "// @require      https://code.jquery.com/ui/1.12.1/jquery-ui.min.js",
@@ -51,6 +52,17 @@ async function readSource() {
   return chunks.join("");
 }
 
+function stripUserscriptHeader(code, filename) {
+  const headerEnd = "// ==/UserScript==";
+  const headerEndIndex = code.indexOf(headerEnd);
+  if (headerEndIndex === -1) {
+    throw new Error(`${filename} is missing ${headerEnd}`);
+  }
+
+  const bodyStart = code.indexOf("\n", headerEndIndex + headerEnd.length);
+  return bodyStart === -1 ? "" : code.slice(bodyStart + 1);
+}
+
 async function verifyOriginalSplit() {
   const originalPath = path.join(root, "reference", "evolve_automation.original.user.js");
   if (!(await exists(originalPath))) {
@@ -58,12 +70,11 @@ async function verifyOriginalSplit() {
   }
 
   const original = (await readFile(originalPath, "utf8")).replace(/\r\n?/g, "\n");
-  const header = (await readFile(headerPath, "utf8")).replace(/\r\n?/g, "\n").trimEnd();
+  const originalBody = stripUserscriptHeader(original, path.relative(root, originalPath));
   const body = await readSource();
-  const reconstructed = `${header}\n${body}`;
 
-  if (original !== reconstructed) {
-    throw new Error("src/userscript-header.txt + src/source-files.json no longer reconstructs reference/evolve_automation.original.user.js");
+  if (originalBody !== body) {
+    throw new Error("src/source-files.json no longer reconstructs the body of reference/evolve_automation.original.user.js");
   }
 }
 

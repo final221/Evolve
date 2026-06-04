@@ -1,17 +1,11 @@
 // ==UserScript==
-// @name         Evolve
+// @name         Evolve 2.0
 // @namespace    http://tampermonkey.net/
-// @version      3.3.1.147
+// @version      0.1.0
 // @description  try to take over the world!
-// @downloadURL  https://github.com/Vollch/Evolve-Automation/raw/master/evolve_automation.user.js
-// @updateURL    https://github.com/Vollch/Evolve-Automation/raw/master/evolve_automation.meta.js
-// @author       Fafnir
-// @author       TMVictor
-// @author       Vollch
-// @author       schoeggu
-// @author       davezatch
-// @author       Kewne
-// @author       SkyeAmphi
+// @downloadURL  https://raw.githubusercontent.com/final221/Evolve/main/dist/evolve_automation.user.js
+// @updateURL    https://raw.githubusercontent.com/final221/Evolve/main/dist/evolve_automation.user.js
+// @author       Fynn
 // @match        https://pmotschmann.github.io/Evolve/
 // @grant        none
 // @require      https://code.jquery.com/jquery-3.7.1.min.js

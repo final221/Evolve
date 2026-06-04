@@ -8,6 +8,7 @@ const headerPath = path.join(root, "src", "userscript-header.txt");
 const sourceFilesPath = path.join(root, "src", "source-files.json");
 const outDir = path.join(root, "dist");
 const useTerser = process.argv.includes("--terser");
+const checkOnly = process.argv.includes("--check");
 const outFile = useTerser ? "evolve_automation.min.user.js" : "evolve_automation.user.js";
 const outPath = path.join(outDir, outFile);
 
@@ -74,6 +75,25 @@ const body = await buildBody(source);
 const output = `${header.trimEnd()}\n${body.trimStart()}\n`;
 
 await mkdir(outDir, { recursive: true });
-await writeFile(outPath, output, "utf8");
 
-console.log(`Built ${path.relative(root, outPath)}`);
+if (checkOnly) {
+  let current;
+  try {
+    current = await readFile(outPath, "utf8");
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      throw new Error(`${path.relative(root, outPath)} is missing. Run npm run build${useTerser ? ":min" : ""}.`);
+    }
+
+    throw error;
+  }
+
+  if (normalizeNewlines(current) !== output) {
+    throw new Error(`${path.relative(root, outPath)} is out of date. Run npm run build${useTerser ? ":min" : ""}.`);
+  }
+
+  console.log(`${path.relative(root, outPath)} is up to date`);
+} else {
+  await writeFile(outPath, output, "utf8");
+  console.log(`Built ${path.relative(root, outPath)}`);
+}

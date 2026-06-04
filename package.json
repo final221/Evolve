@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
+    "build:check": "node scripts/build.mjs --check && node scripts/build.mjs --terser --check",
     "build:min": "node scripts/build.mjs --terser",
-    "check": "node scripts/sync-parts.mjs --check && node scripts/check.mjs",
+    "check": "node scripts/sync-parts.mjs --check && node scripts/check.mjs && npm run build:check",
     "parts": "node scripts/sync-parts.mjs",
     "parts:check": "node scripts/sync-parts.mjs --check",
     "size": "node scripts/size.mjs"

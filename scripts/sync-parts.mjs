@@ -87,7 +87,7 @@ These files are concatenated in the order listed by \`src/source-files.json\`.
 
 Run \`npm run parts\` after adding, renaming, deleting, or splitting part files. It regenerates the ordered source list and this navigation map from the actual \`src/parts/*.js\` files, so the split structure has a builder of its own instead of another hand-maintained index.
 
-The build/check scripts verify that the ordered parts plus \`src/userscript-header.txt\` still reconstruct \`reference/evolve_automation.original.user.js\` exactly, after newline normalization.
+The build/check scripts verify that the ordered parts still reconstruct the script body from \`reference/evolve_automation.original.user.js\` exactly, after newline normalization. The userscript metadata in \`src/userscript-header.txt\` is owned by this fork.
 
 ## Where To Look First
 
