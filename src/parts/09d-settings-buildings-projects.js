@@ -34,95 +34,10 @@
         ];
         addSettingsSelect(currentNode, "buildingConsumptionCheck", "Behavior when building support/upkeep-using building", "By default, the script only buys one building with support or upkeep requirement per tick, to allow automatic weightings to work optimally.", consumptionOptions);
 
-        currentNode.append(`
-          <div><input id="script_buildingSearch" class="script-searchsettings" type="text" placeholder="Search for buildings..."></div>
-          <table style="width:100%">
-            <tr>
-              <th class="has-text-warning" style="width:35%">Building</th>
-              <th class="has-text-warning" style="width:15%" title="Enables auto building. Triggers ignores this option, allowing to build disabled things.">Auto Build</th>
-              <th class="has-text-warning" style="width:15%" title="Maximum amount of buildings to build. Triggers ignores this option, allowing to build above limit. Can be also used to limit amount of enabled buildings, with respective option above.">Max Build</th>
-              <th class="has-text-warning" style="width:15%" title="Script will try to spend 2x amount of resources on building having 2x weighting, and such.">Weighting</th>
-              <th class="has-text-warning" style="width:20%" title="First toggle enables basic automation based on priority, power, support, and consumption. Second enables logic made specially for particlular building, their effects are different, but generally it tries to behave smarter than just staying enabled all the time.">Auto Power</th>
-            </tr>
-            <tbody id="script_buildingTableBody"></tbody>
-          </table>`);
-
-        let tableBodyNode = $('#script_buildingTableBody');
+        currentNode.append('<div><input id="script_buildingSearch" class="script-searchsettings" type="text" placeholder="Search for buildings..."></div>');
+        renderSettingsTable(currentNode, getBuildingProjectSettingsSchema().building.tables.building);
 
         $("#script_buildingSearch").on("keyup", filterBuildingSettingsTable); // Add building filter
-
-        // Add in a first row for switching "All"
-        let newTableBodyText = '<tr value="All" class="unsortable"><td id="script_bldallToggle" style="width:35%"></td><td style="width:15%"></td><td style="width:15%"></td><td style="width:15%"></td><td style="width:20%"><span id="script_resetBuildingsPriority" class="script-refresh"></span></td></tr>';
-
-        for (let i = 0; i < BuildingManager.priorityList.length; i++) {
-            let building = BuildingManager.priorityList[i];
-            newTableBodyText += `<tr value="${building._vueBinding}" class="script-draggable"><td id="script_${building._vueBinding}" style="width:35%"></td><td style="width:15%"></td><td style="width:15%"></td><td style="width:15%"></td><td style="width:20%"></td></tr>`;
-        }
-        tableBodyNode.append($(newTableBodyText));
-
-        // Build special "All Buildings" top row
-        let buildingElement = $('#script_bldallToggle');
-        buildingElement.append('<span class="has-text-warning" style="margin-left: 20px;">All Buildings</span>');
-
-        // enabled column
-        buildingElement = buildingElement.next();
-        buildingElement.append(buildAllBuildingEnabledSettingsToggle());
-
-        // state column
-        buildingElement = buildingElement.next().next().next();
-        buildingElement.append(buildAllBuildingStateSettingsToggle());
-
-        $('#script_resetBuildingsPriority').on("click", function(){
-            if (confirm("Are you sure you wish to reset buildings priority?")) {
-                initBuildingState();
-                for (let i = 0; i < BuildingManager.priorityList.length; i++) {
-                    let id = BuildingManager.priorityList[i]._vueBinding;
-                    settingsRaw['bld_p_' + id] = i;
-                }
-                updateSettingsFromState();
-                updateBuildingSettingsContent();
-            }
-        });
-
-        // Build all other buildings settings rows
-        for (let i = 0; i < BuildingManager.priorityList.length; i++) {
-            let building = BuildingManager.priorityList[i];
-            let buildingElement = $('#script_' + building._vueBinding);
-
-            let color = (building._tab === "space" || building._tab === "starDock") ? "has-text-danger" :
-                        (building._tab === "galaxy" || building._tab === "eden") ? "has-text-advanced" :
-                        building._tab === "interstellar" ? "has-text-special" :
-                        (building._tab === "portal" || building._tab === "tauceti") ? "has-text-warning" :
-                        "has-text-info";
-
-            buildingElement.append(buildTableLabel(building.name, "", color));
-
-            buildingElement = buildingElement.next();
-            addTableToggle(buildingElement, "bat" + building._vueBinding);
-
-            buildingElement = buildingElement.next();
-            addTableInput(buildingElement, "bld_m_" + building._vueBinding);
-
-            buildingElement = buildingElement.next();
-            addTableInput(buildingElement, "bld_w_" + building._vueBinding);
-
-            buildingElement = buildingElement.next();
-            buildBuildingStateSettingsToggle(buildingElement, building);
-        }
-
-        tableBodyNode.sortable({
-            items: "tr:not(.unsortable)",
-            helper: sorterHelper,
-            update: function() {
-                let buildingElements = tableBodyNode.sortable('toArray', {attribute: 'value'});
-                for (let i = 0; i < buildingElements.length; i++) {
-                    settingsRaw['bld_p_' + buildingElements[i]] = i;
-                }
-
-                BuildingManager.sortByPriority();
-                updateSettingsFromState();
-            },
-        });
 
         document.documentElement.scrollTop = document.body.scrollTop = currentScrollPosition;
     }
@@ -322,57 +237,7 @@
         addSettingsToggle(currentNode, "arpaScaleWeighting", "Scale weighting with progress", "Projects weighting scales  with current progress, making script more eager to spend resources on finishing nearly constructed projects.");
         addSettingsNumber(currentNode, "arpaStep", "Preferred progress step", "Projects will be weighted and build in this steps. Increasing number can speed up constructing. Step will be adjusted down when preferred step above remaining amount, or surpass storage caps. Weightings below will be multiplied by current step. Projects builded by triggers will always have maximum possible step.");
 
-        currentNode.append(`
-          <table style="width:100%">
-            <tr>
-              <th class="has-text-warning" style="width:25%">Project</th>
-              <th class="has-text-warning" style="width:25%">Auto Build</th>
-              <th class="has-text-warning" style="width:25%">Max Build</th>
-              <th class="has-text-warning" style="width:25%">Weighting</th>
-            </tr>
-            <tbody id="script_projectTableBody"></tbody>
-          </table>`);
-
-        let tableBodyNode = $('#script_projectTableBody');
-        let newTableBodyText = "";
-
-        for (let i = 0; i < ProjectManager.priorityList.length; i++) {
-            const project = ProjectManager.priorityList[i];
-            newTableBodyText += `<tr value="${project.id}" class="script-draggable"><td id="script_${project.id}" style="width:25%"></td><td style="width:25%"></td><td style="width:25%"></td><td style="width:25%"></td><td style="width:25%"></td></tr>`;
-        }
-        tableBodyNode.append($(newTableBodyText));
-
-        // Build all other projects settings rows
-        for (let i = 0; i < ProjectManager.priorityList.length; i++) {
-            const project = ProjectManager.priorityList[i];
-            let projectElement = $('#script_' + project.id);
-
-            projectElement.append(buildTableLabel(project.name));
-
-            projectElement = projectElement.next();
-            addTableToggle(projectElement, "arpa_" + project.id);
-
-            projectElement = projectElement.next();
-            addTableInput(projectElement, "arpa_m_" + project.id);
-
-            projectElement = projectElement.next();
-            addTableInput(projectElement, "arpa_w_" + project.id);
-
-        }
-
-        tableBodyNode.sortable({
-            items: "tr:not(.unsortable)",
-            helper: sorterHelper,
-            update: function() {
-                let projectIds = tableBodyNode.sortable('toArray', {attribute: 'value'});
-                for (let i = 0; i < projectIds.length; i++) {
-                    settingsRaw["arpa_p_" + projectIds[i]] = i;
-                }
-
-                ProjectManager.sortByPriority();
-                updateSettingsFromState();
-            },
-        });
+        renderSettingsTable(currentNode, getBuildingProjectSettingsSchema().project.tables.project);
 
         document.documentElement.scrollTop = document.body.scrollTop = currentScrollPosition;
     }

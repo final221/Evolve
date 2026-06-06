@@ -339,84 +339,18 @@
 
     function resetBuildingSettings(reset) {
         initBuildingState();
-        let def = {
-            autoBuild: false,
-            autoPower: false,
-            buildingsIgnoreZeroRate: false,
-            buildingsLimitPowered: true,
-            buildingTowerSuppression: 100,
-            buildingConsumptionCheck: "perResource",
-            buildingsTransportGem: false,
-            buildingsBestFreighter: false,
-            buildingsUseMultiClick: false,
-            buildingEnabledAll: true,
-            buildingStateAll: true
-        }
-
-        for (let i = 0; i < BuildingManager.priorityList.length; i++) {
-            let building = BuildingManager.priorityList[i];
-            let id = building._vueBinding;
-
-            def['bat' + id] = true; // autoBuildEnabled
-            def['bld_p_' + id] = i; // priority
-            def['bld_m_' + id] = -1; // _autoMax
-            def['bld_w_' + id] = 100; // _weighting
-
-            if (building.isSwitchable()) {
-                def['bld_s_' + id] = true; // autoStateEnabled
-            }
-            if (building.is.smart) {
-                def['bld_s2_' + id] = true; // autoStateSmart
-            }
-        }
-        // Moon smart is disabled by default
-        def['bld_s2_space-iridium_mine'] = false;
-        def['bld_s2_space-helium_mine'] = false;
-
-        // AutoBuild disabled by default for early(ish) buildings consuming Soul Gems, Blood Stones and Plasmids
-        // Same for Womling interaction action, and Gas names, as they are mutualy exclusive
-        ["RedVrCenter", "NeutronCitadel", "PortalWarDroid", "BadlandsPredatorDrone", "PortalRepairDroid", "SpireWaygate",
-         "TauRedContact", "TauRedIntroduce", "TauRedSubjugate",
-         "TauGasName1", "TauGasName2", "TauGasName3", "TauGasName4", "TauGasName5", "TauGasName6", "TauGasName7", "TauGasName8",
-         "TauGas2Name1", "TauGas2Name2", "TauGas2Name3", "TauGas2Name4", "TauGas2Name5", "TauGas2Name6", "TauGas2Name7", "TauGas2Name8"]
-          .forEach(b => def['bat' + buildings[b]._vueBinding] = false);
-
-        // Limit max for belt ships, and horseshoes
-        def['bld_m_' + buildings.ForgeHorseshoe._vueBinding] = 20;
-        def['bld_m_' + buildings.RedForgeHorseshoe._vueBinding] = 20;
-        def['bld_m_' + buildings.TauForgeHorseshoe._vueBinding] = 20;
-        def['bld_m_' + buildings.BeltEleriumShip._vueBinding] = 15;
-        def['bld_m_' + buildings.BeltIridiumShip._vueBinding] = 15;
+        let def = {};
+        applySettingsSchemaDefaults(def, getBuildingProjectSettingsSchema().building);
 
         applySettings(def, reset);
         BuildingManager.sortByPriority();
     }
 
     function resetProjectSettings(reset) {
-        ProjectManager.priorityList = Object.values(projects);
-        let def = {
-            autoARPA: false,
-            arpaScaleWeighting: true,
-            arpaStep: 5,
-        }
-
-        let projectPriority = 0;
-        const setProject = (item, autoBuildEnabled, _autoMax, _weighting) => {
-            let id = projects[item].id;
-            def['arpa_' + id] = autoBuildEnabled;
-            def['arpa_p_' + id] = projectPriority++;
-            def['arpa_m_' + id] = _autoMax;
-            def['arpa_w_' + id] = _weighting;
-        };
-        setProject("LaunchFacility", true, -1, 100);
-        setProject("SuperCollider", true, -1, 5);
-        setProject("StockExchange", true, -1, 0.5);
-        setProject("Monument", true, -1, 1);
-        setProject("Railway", true, -1, 0.1);
-        setProject("Nexus", true, -1, 1);
-        setProject("RoidEject", true, -1, 1);
-        setProject("ManaSyphon", false, 79, 1);
-        setProject("Depot", true, -1, 1);
+        let schema = getBuildingProjectSettingsSchema().project;
+        ProjectManager.priorityList = schema.priorityRows();
+        let def = {};
+        applySettingsSchemaDefaults(def, schema);
 
         applySettings(def, reset);
         ProjectManager.sortByPriority();

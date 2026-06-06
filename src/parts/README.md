@@ -34,6 +34,7 @@ The build/check scripts verify that the ordered parts parse as JavaScript, the f
 - `04a2-init-building-state.js`: building state initialization.
 - `04a3-production-settings-schema.js`: production settings schema.
 - `04a4-market-storage-settings-schema.js`: market storage settings schema.
+- `04a5-building-project-settings-schema.js`: building project settings schema.
 - `04b-settings-defaults.js`: default/reset settings for every settings surface.
 - `04c-settings-sync-and-migration.js`: settings state sync, standalone settings, migrations, achievement lookup, queued settings.
 - `05a1-automation-evolution-planet.js`: evolution target, universe, planet generation, and planet selection automation.

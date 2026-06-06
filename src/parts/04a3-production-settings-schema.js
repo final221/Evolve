@@ -180,10 +180,14 @@
             for (let index = 0; index < rows.length; index++) {
                 let row = rows[index];
                 for (let setting of group.settings) {
+                    if (setting.when && !setting.when(row, index)) {
+                        continue;
+                    }
                     def[setting.key(row, index)] = typeof setting.value === "function" ? setting.value(row, index) : setting.value;
                 }
             }
         }
+        schema.afterDefaults?.(def);
     }
 
     function renderSettingsTable(parentNode, tableConfig) {
