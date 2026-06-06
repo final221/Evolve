@@ -248,30 +248,10 @@
     }
 
     function resetMagicSettings(reset) {
-        AlchemyManager.priorityList = Object.values(resources).filter(r => AlchemyManager.transmuteTier(r) > 0);
-        let def = {
-            autoAlchemy: false,
-            autoPylon: false,
-            magicAlchemyManaUse: 0.5,
-            productionRitualManaUse: 0.5,
-            productionRitualSafe: true,
-        }
-
-        // Alchemy
-        for (let i = 0; i < AlchemyManager.priorityList.length; i++) {
-            let resource = AlchemyManager.priorityList[i];
-            let id = resource.id;
-
-            def['res_alchemy_' + id] = true; // resEnabled
-            def['res_alchemy_w_' + id] = 0; // resWeighting
-        }
-
-        // Pylon
-        for (let spell of Object.values(RitualManager.Productions)) {
-            def['spell_w_' + spell.id] = 100; // weighting
-        }
-        def['spell_w_hunting'] = 10;
-        def['spell_w_farmer'] = 1;
+        let schema = getMagicSettingsSchema();
+        AlchemyManager.priorityList = schema.priorityRows();
+        let def = {};
+        applySettingsSchemaDefaults(def, schema);
 
         applySettings(def, reset);
     }

@@ -173,6 +173,61 @@
         };
     }
 
+    function getMagicSettingsSchema() {
+        return {
+            defaults: {
+                autoAlchemy: false,
+                autoPylon: false,
+                magicAlchemyManaUse: 0.5,
+                productionRitualManaUse: 0.5,
+                productionRitualSafe: true,
+            },
+            priorityRows: () => Object.values(resources).filter(r => AlchemyManager.transmuteTier(r) > 0),
+            defaultGroups: [
+                {
+                    rows: () => AlchemyManager.priorityList,
+                    settings: [
+                        {key: row => "res_alchemy_" + row.id, value: true},
+                        {key: row => "res_alchemy_w_" + row.id, value: 0},
+                    ],
+                },
+                {
+                    rows: () => Object.values(RitualManager.Productions),
+                    settings: [
+                        {key: row => "spell_w_" + row.id, value: 100},
+                    ],
+                },
+            ],
+            afterDefaults: def => {
+                def.spell_w_hunting = 10;
+                def.spell_w_farmer = 1;
+            },
+            tables: {
+                alchemy: {
+                    bodyId: "script_alchemyTableBody",
+                    rows: () => AlchemyManager.priorityList,
+                    rowId: row => row.id,
+                    columns: [
+                        {header: "Resource", width: "20%", color: "has-text-warning", render: (cell, row) => cell.append(buildTableLabel(row.name, "", AlchemyManager.transmuteTier(row) > 1 ? "has-text-advanced" : "has-text-info"))},
+                        {header: "Enabled", width: "20%", color: "has-text-warning", render: (cell, row) => addTableToggle(cell, "res_alchemy_" + row.id)},
+                        {header: "Weighting", width: "20%", color: "has-text-warning", render: (cell, row) => addTableInput(cell, "res_alchemy_w_" + row.id)},
+                        {header: "", width: "40%"},
+                    ],
+                },
+                pylon: {
+                    bodyId: "script_magicTableBodyPylon",
+                    rows: () => Object.values(RitualManager.Productions),
+                    rowId: row => row.id,
+                    columns: [
+                        {header: "Ritual", width: "55%", color: "has-text-warning", render: (cell, row) => cell.append(buildTableLabel(game.loc(`modal_pylon_spell_${row.id}`)))},
+                        {header: "Weighting", width: "20%", color: "has-text-warning", render: (cell, row) => addTableInput(cell, "spell_w_" + row.id)},
+                        {header: "", width: "25%"},
+                    ],
+                },
+            },
+        };
+    }
+
     function applySettingsSchemaDefaults(def, schema) {
         Object.assign(def, schema.defaults);
         for (let group of schema.defaultGroups ?? []) {

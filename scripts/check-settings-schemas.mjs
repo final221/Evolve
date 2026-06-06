@@ -17,11 +17,13 @@ vm.runInContext(schemaSources.join("\n"), context, { filename: "settings-schema-
 
 assert.equal(typeof context.applySettingsSchemaDefaults, "function", "applySettingsSchemaDefaults must be available");
 assert.equal(typeof context.getProductionSettingsSchema, "function", "getProductionSettingsSchema must be available");
+assert.equal(typeof context.getMagicSettingsSchema, "function", "getMagicSettingsSchema must be available");
 assert.equal(typeof context.getMarketStorageSettingsSchema, "function", "getMarketStorageSettingsSchema must be available");
 assert.equal(typeof context.getBuildingProjectSettingsSchema, "function", "getBuildingProjectSettingsSchema must be available");
 assert.equal(typeof context.getJobTraitEjectorSettingsSchema, "function", "getJobTraitEjectorSettingsSchema must be available");
 
 checkProductionDefaults(context);
+checkMagicDefaults(context);
 checkMarketStorageDefaults(context);
 checkBuildingProjectDefaults(context);
 checkJobEjectorDefaults(context);
@@ -47,6 +49,26 @@ function checkProductionDefaults(context) {
   assert.equal(def.replicator_Food, true, "replicator resources should default enabled");
   assert.equal(def.replicator_w_Nano_Tube, 1, "replicator weightings should default to one");
   assert.equal(def.replicator_p_Nano_Tube, 1, "replicator priorities should default to one");
+}
+
+function checkMagicDefaults(context) {
+  const schema = context.getMagicSettingsSchema();
+  const def = {};
+
+  context.AlchemyManager.priorityList = schema.priorityRows();
+  context.applySettingsSchemaDefaults(def, schema);
+
+  assert.equal(def.autoAlchemy, false, "alchemy automation should default off");
+  assert.equal(def.autoPylon, false, "pylon automation should default off");
+  assert.equal(def.magicAlchemyManaUse, 0.5, "alchemy mana usage should default to half income");
+  assert.equal(def.productionRitualManaUse, 0.5, "ritual mana usage should default to half income");
+  assert.equal(def.productionRitualSafe, true, "safe rituals should default enabled");
+  assert.equal(def.res_alchemy_Stone, true, "transmutable resources should default enabled");
+  assert.equal(def.res_alchemy_w_Stone, 0, "alchemy weighting should default to zero");
+  assert.equal(Object.hasOwn(def, "res_alchemy_Food"), false, "non-transmutable resources should be excluded");
+  assert.equal(def.spell_w_hunting, 10, "hunting ritual weighting should keep the historical override");
+  assert.equal(def.spell_w_farmer, 1, "farmer ritual weighting should keep the historical override");
+  assert.equal(def.spell_w_knowledge, 100, "ordinary ritual weighting should default to 100");
 }
 
 function checkMarketStorageDefaults(context) {
@@ -229,6 +251,7 @@ function makeContext() {
     "Nano_Tube",
     "Stanene",
     "Adamantite",
+    "Mana",
   ].map(id => [id, makeResource(id)]));
 
   const traits = {
@@ -393,6 +416,17 @@ function makeContext() {
     },
     FactoryManager: { Productions: factoryProductions },
     DroidManager: { Productions: droidProductions },
+    AlchemyManager: {
+      priorityList: [],
+      transmuteTier: resource => ({ Stone: 1, Crystal: 2 }[resource.id] ?? 0),
+    },
+    RitualManager: {
+      Productions: {
+        hunting: { id: "hunting" },
+        farmer: { id: "farmer" },
+        knowledge: { id: "knowledge" },
+      },
+    },
     ReplicatorManager: {
       Productions: {
         Food: makeProduction(resources.Food),
