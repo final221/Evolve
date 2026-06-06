@@ -81,10 +81,20 @@
             return;
         }
 
+        let tradeAdjustments = planGalaxyMarketAssignments();
+        applyGalaxyMarketAssignments(poly.galaxyOffers, tradeAdjustments);
+    }
+
+    function planGalaxyMarketAssignments(offers = poly.galaxyOffers, context = {}) {
+        const activeResources = context.resources ?? resources;
+        const activeSettings = context.settings ?? settings;
+        const manager = context.manager ?? GalaxyTradeManager;
+        const groupByPriority = context.buildPriorityList ?? buildPriorityList;
+
          // Init adjustment, and sort groups by priorities
         let tradeAdjustments = {};
-        let priorityList = buildPriorityList(poly.galaxyOffers, (trade) => {
-            let buyResource = resources[trade.buy.res];
+        let priorityList = groupByPriority(offers, (trade) => {
+            let buyResource = activeResources[trade.buy.res];
             let priority = 0;
             if (buyResource.galaxyMarketWeighting > 0) {
                 priority = buyResource.isDemanded() ? Math.max(buyResource.galaxyMarketPriority, 100) : buyResource.galaxyMarketPriority;
@@ -94,21 +104,21 @@
         });
 
         // Calculate amount of factories per product
-        let remainingFreighters = GalaxyTradeManager.maxOperating();
+        let remainingFreighters = manager.maxOperating();
         for (let i = 0; i < priorityList.length && remainingFreighters > 0; i++) {
-            let trades = priorityList[i].sort((a, b) => resources[a.buy.res].galaxyMarketWeighting - resources[b.buy.res].galaxyMarketWeighting);
+            let trades = priorityList[i].sort((a, b) => activeResources[a.buy.res].galaxyMarketWeighting - activeResources[b.buy.res].galaxyMarketWeighting);
             while (remainingFreighters > 0) {
                 let freightersToDistribute = remainingFreighters;
-                let totalPriorityWeight = trades.reduce((sum, trade) => sum + resources[trade.buy.res].galaxyMarketWeighting, 0);
+                let totalPriorityWeight = trades.reduce((sum, trade) => sum + activeResources[trade.buy.res].galaxyMarketWeighting, 0);
 
                 for (let j = trades.length - 1; j >= 0 && remainingFreighters > 0; j--) {
                     let trade = trades[j];
-                    let buyResource = resources[trade.buy.res];
-                    let sellResource = resources[trade.sell.res];
+                    let buyResource = activeResources[trade.buy.res];
+                    let sellResource = activeResources[trade.sell.res];
 
                     let calculatedRequiredFreighters = Math.min(remainingFreighters, Math.max(1, Math.floor(freightersToDistribute / totalPriorityWeight * buyResource.galaxyMarketWeighting)));
                     let actualRequiredFreighters = calculatedRequiredFreighters;
-                    if (!buyResource.isUseful() || sellResource.isDemanded() || sellResource.storageRatio < settings.marketMinIngredients) {
+                    if (!buyResource.isUseful() || sellResource.isDemanded() || sellResource.storageRatio < activeSettings.marketMinIngredients) {
                         actualRequiredFreighters = 0;
                     }
 
@@ -129,10 +139,13 @@
             }
         }
 
-        let tradeDeltas = poly.galaxyOffers.map((trade, index) => tradeAdjustments[trade.buy.res] - GalaxyTradeManager.currentProduction(index));
-
-        // TODO: Add GalaxyTradeManager.zeroProduction() to save some clicks.
-        tradeDeltas.forEach((value, index) => value < 0 && GalaxyTradeManager.decreaseProduction(index, value * -1));
-        tradeDeltas.forEach((value, index) => value > 0 && GalaxyTradeManager.increaseProduction(index, value));
+        return tradeAdjustments;
     }
 
+    function applyGalaxyMarketAssignments(offers, tradeAdjustments, manager = GalaxyTradeManager) {
+        let tradeDeltas = offers.map((trade, index) => tradeAdjustments[trade.buy.res] - manager.currentProduction(index));
+
+        // TODO: Add GalaxyTradeManager.zeroProduction() to save some clicks.
+        tradeDeltas.forEach((value, index) => value < 0 && manager.decreaseProduction(index, value * -1));
+        tradeDeltas.forEach((value, index) => value > 0 && manager.increaseProduction(index, value));
+    }

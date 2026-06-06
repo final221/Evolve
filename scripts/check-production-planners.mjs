@@ -6,6 +6,7 @@ import vm from "node:vm";
 const root = process.cwd();
 const helperSource = await readFile(path.join(root, "src", "parts", "10c-general-helpers.js"), "utf8");
 const automationSource = await readFile(path.join(root, "src", "parts", "05b3-automation-factory-droid-graphene.js"), "utf8");
+const marketSource = await readFile(path.join(root, "src", "parts", "05c2-automation-market.js"), "utf8");
 const tradeRouteSource = await readFile(path.join(root, "src", "parts", "05d3-automation-traits-trade-outer-fleet.js"), "utf8");
 
 const context = {
@@ -20,11 +21,12 @@ const context = {
   CONSUMPTION_BALANCE_MIN: 60,
 };
 vm.createContext(context);
-vm.runInContext(`${helperSource}\n${automationSource}\n${tradeRouteSource}`, context, { filename: "production-planner-sources.js" });
+vm.runInContext(`${helperSource}\n${automationSource}\n${marketSource}\n${tradeRouteSource}`, context, { filename: "production-planner-sources.js" });
 
 assert.equal(typeof context.buildPriorityList, "function", "buildPriorityList must be available");
 assert.equal(typeof context.planFactoryAssignments, "function", "planFactoryAssignments must be available");
 assert.equal(typeof context.planMiningDroidAssignments, "function", "planMiningDroidAssignments must be available");
+assert.equal(typeof context.planGalaxyMarketAssignments, "function", "planGalaxyMarketAssignments must be available");
 assert.equal(typeof context.planTradeRouteAssignments, "function", "planTradeRouteAssignments must be available");
 
 {
@@ -87,6 +89,58 @@ assert.equal(typeof context.planTradeRouteAssignments, "function", "planTradeRou
   const result = context.planMiningDroidAssignments([capped], { manager });
 
   assert.equal(JSON.stringify(result), JSON.stringify({ capped: 1 }), "droid planner should preserve current counts when not all droids can be assigned");
+}
+
+{
+  const offers = [
+    makeGalaxyOffer("Iron", "Copper"),
+    makeGalaxyOffer("Alloy", "Copper"),
+  ];
+  const resources = {
+    Copper: makeGalaxyResource("Copper", { storageRatio: 1 }),
+    Iron: makeGalaxyResource("Iron", { galaxyMarketPriority: 1, galaxyMarketWeighting: 1 }),
+    Alloy: makeGalaxyResource("Alloy", { galaxyMarketPriority: 1, galaxyMarketWeighting: 3 }),
+  };
+
+  const result = context.planGalaxyMarketAssignments(offers, galaxyMarketContext(resources, { maxOperating: 4 }));
+
+  assert.equal(result.Iron, 1, "galaxy market planner should reserve at least one freighter for lower weighted equal-priority offers");
+  assert.equal(result.Alloy, 3, "galaxy market planner should distribute remaining freighters by weighting");
+}
+
+{
+  const offers = [
+    makeGalaxyOffer("Iron", "Copper"),
+    makeGalaxyOffer("Alloy", "Copper"),
+  ];
+  const resources = {
+    Copper: makeGalaxyResource("Copper", { storageRatio: 1 }),
+    Iron: makeGalaxyResource("Iron", { galaxyMarketPriority: 1, galaxyMarketWeighting: 1, demanded: true }),
+    Alloy: makeGalaxyResource("Alloy", { galaxyMarketPriority: 1, galaxyMarketWeighting: 3 }),
+  };
+
+  const result = context.planGalaxyMarketAssignments(offers, galaxyMarketContext(resources, { maxOperating: 4 }));
+
+  assert.equal(result.Iron, 4, "demanded galaxy market resources should receive the priority boost");
+  assert.equal(result.Alloy, 0, "lower-priority galaxy market offers should be explicitly planned to zero");
+}
+
+{
+  const offers = [
+    makeGalaxyOffer("Iron", "Copper"),
+    makeGalaxyOffer("Alloy", "Titanium"),
+  ];
+  const resources = {
+    Copper: makeGalaxyResource("Copper", { storageRatio: 0.2 }),
+    Titanium: makeGalaxyResource("Titanium", { storageRatio: 1, demanded: true }),
+    Iron: makeGalaxyResource("Iron", { galaxyMarketPriority: 1, galaxyMarketWeighting: 1 }),
+    Alloy: makeGalaxyResource("Alloy", { galaxyMarketPriority: 1, galaxyMarketWeighting: 1 }),
+  };
+
+  const result = context.planGalaxyMarketAssignments(offers, galaxyMarketContext(resources, { maxOperating: 2 }));
+
+  assert.equal(result.Iron, 0, "galaxy market planner should skip offers with ingredients below the minimum ratio");
+  assert.equal(result.Alloy, 0, "galaxy market planner should skip offers that sell demanded resources");
 }
 
 {
@@ -200,6 +254,36 @@ function makeProduction(id, options = {}) {
     weighting: options.weighting ?? 1,
     priority: options.priority ?? 1,
     cost: options.cost ?? [],
+  };
+}
+
+function galaxyMarketContext(resources, overrides = {}) {
+  return {
+    manager: {
+      maxOperating: () => overrides.maxOperating ?? 1,
+    },
+    resources,
+    settings: {
+      marketMinIngredients: overrides.marketMinIngredients ?? 0.5,
+    },
+  };
+}
+
+function makeGalaxyOffer(buyResourceId, sellResourceId) {
+  return {
+    buy: { res: buyResourceId },
+    sell: { res: sellResourceId },
+  };
+}
+
+function makeGalaxyResource(id, options = {}) {
+  return {
+    id,
+    storageRatio: options.storageRatio ?? 1,
+    galaxyMarketPriority: options.galaxyMarketPriority ?? 0,
+    galaxyMarketWeighting: options.galaxyMarketWeighting ?? 0,
+    isDemanded: () => options.demanded ?? false,
+    isUseful: () => options.useful ?? true,
   };
 }
 
