@@ -281,58 +281,8 @@
     }
 
     function resetFleetSettings(reset) {
-        let def = {
-            autoFleet: false,
-            fleetOuterCrew: 30,
-            fleetOuterShips: "custom",
-            fleetExploreTau: true,
-            fleetMaxCover: true,
-            fleetEmbassyKnowledge: 6000000,
-            fleetAlienGiftKnowledge: 6500000,
-            fleetAlien2Knowledge: 8000000,
-            fleetAlien2Loses: "none",
-            fleetChthonianLoses: "low",
-
-            // Default combat ship
-            fleet_outer_class: 'destroyer',
-            fleet_outer_armor: 'neutronium',
-            fleet_outer_weapon: 'plasma',
-            fleet_outer_engine: 'ion',
-            fleet_outer_power: 'fission',
-            fleet_outer_sensor: 'lidar',
-
-            // Default scout ship
-            fleet_scout_class: 'corvette',
-            fleet_scout_armor: 'neutronium',
-            fleet_scout_weapon: 'plasma',
-            fleet_scout_engine: 'tie',
-            fleet_scout_power: 'fusion',
-            fleet_scout_sensor: 'quantum',
-
-            // Default andromeda regions priority
-            fleet_pr_gxy_stargate: 0,
-            fleet_pr_gxy_alien2: 1,
-            fleet_pr_gxy_alien1: 2,
-            fleet_pr_gxy_chthonian: 3,
-            fleet_pr_gxy_gateway: 4,
-            fleet_pr_gxy_gorddon: 5,
-        }
-
-        const setOuterRegion = (id, weighting, protect, scouts) => {
-            def['fleet_outer_pr_' + id] = weighting;
-            def['fleet_outer_def_' + id] = protect;
-            def['fleet_outer_sc_' + id] = scouts;
-        };
-        setOuterRegion("spc_moon", 1, 0.9, 0); // Iridium
-        setOuterRegion("spc_red", 3, 0.9, 0); // Titanium
-        setOuterRegion("spc_gas", 0, 0.9, 0); // Helium
-        setOuterRegion("spc_gas_moon", 0, 0.9, 0); // Oil
-        setOuterRegion("spc_belt", 1, 0.9, 0); // Iridium
-        setOuterRegion("spc_titan", 5, 0.9, 1); // Adamantite
-        setOuterRegion("spc_enceladus", 3, 0.9, 1); // Quantium
-        setOuterRegion("spc_triton", 10, 0.95, 2); // Encrypted data
-        setOuterRegion("spc_kuiper", 5, 0.9, 2); // Orichalcum
-        setOuterRegion("spc_eris", 100, 0.01, 1); // Encrypted data
+        let def = {};
+        applySettingsSchemaDefaults(def, getWarHellFleetSettingsSchema().fleet);
 
         applySettings(def, reset);
     }

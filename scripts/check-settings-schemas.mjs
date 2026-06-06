@@ -9,6 +9,7 @@ const schemaSources = await Promise.all([
   "04a4-market-storage-settings-schema.js",
   "04a5-building-project-settings-schema.js",
   "04a6-job-trait-ejector-settings-schema.js",
+  "04a7-war-hell-fleet-settings-schema.js",
 ].map(file => readFile(path.join(root, "src", "parts", file), "utf8")));
 
 const context = makeContext();
@@ -21,6 +22,7 @@ assert.equal(typeof context.getMagicSettingsSchema, "function", "getMagicSetting
 assert.equal(typeof context.getMarketStorageSettingsSchema, "function", "getMarketStorageSettingsSchema must be available");
 assert.equal(typeof context.getBuildingProjectSettingsSchema, "function", "getBuildingProjectSettingsSchema must be available");
 assert.equal(typeof context.getJobTraitEjectorSettingsSchema, "function", "getJobTraitEjectorSettingsSchema must be available");
+assert.equal(typeof context.getWarHellFleetSettingsSchema, "function", "getWarHellFleetSettingsSchema must be available");
 
 checkProductionDefaults(context);
 checkMagicDefaults(context);
@@ -29,6 +31,7 @@ checkBuildingProjectDefaults(context);
 checkWeightingDefaults(context);
 checkJobEjectorDefaults(context);
 checkTraitDefaults(context);
+checkFleetDefaults(context);
 
 console.log("Settings schema regression checks passed");
 
@@ -225,6 +228,29 @@ function checkTraitDefaults(context) {
   assert.equal(mutableDef.mutableTrait_reset_weak, false, "negative-roll traits should get disabled reset default");
   assert.equal(Object.hasOwn(mutableDef, "mutableTrait_gain_herbivore"), false, "genus traits should not get gain defaults");
   assert.equal(Object.hasOwn(mutableDef, "mutableTrait_p_xenophobic"), false, "unobtainable traits should be excluded");
+}
+
+function checkFleetDefaults(context) {
+  const def = {};
+
+  context.applySettingsSchemaDefaults(def, context.getWarHellFleetSettingsSchema().fleet);
+
+  assert.equal(def.autoFleet, false, "fleet automation should default off");
+  assert.equal(def.fleetOuterShips, "custom", "outer fleet ship mode should default to presets");
+  assert.equal(def.fleetOuterCrew, 30, "outer fleet crew reserve should be preserved");
+  assert.equal(def.fleetMaxCover, true, "Andromeda max cover should default enabled");
+  assert.equal(def.fleetAlien2Loses, "none", "Alien 2 assault should default to no losses");
+  assert.equal(def.fleetChthonianLoses, "low", "Chthonian assault should default to low losses");
+  assert.equal(def.fleet_outer_class, "destroyer", "combat ship class preset should be preserved");
+  assert.equal(def.fleet_outer_power, "fission", "combat ship power preset should be preserved");
+  assert.equal(def.fleet_scout_class, "corvette", "scout ship class preset should be preserved");
+  assert.equal(def.fleet_scout_sensor, "quantum", "scout ship sensor preset should be preserved");
+  assert.equal(def.fleet_pr_gxy_stargate, 0, "Andromeda priorities should preserve Stargate first");
+  assert.equal(def.fleet_pr_gxy_gorddon, 5, "Andromeda priorities should preserve Gorddon last");
+  assert.equal(def.fleet_outer_pr_spc_moon, 1, "outer moon weighting should be preserved");
+  assert.equal(def.fleet_outer_pr_spc_eris, 100, "outer Eris weighting should be preserved");
+  assert.equal(def.fleet_outer_def_spc_triton, 0.95, "outer Triton defense should be preserved");
+  assert.equal(def.fleet_outer_sc_spc_kuiper, 2, "outer Kuiper scout count should be preserved");
 }
 
 function makeContext() {
@@ -461,6 +487,11 @@ function makeContext() {
     },
     ProjectManager: { priorityList: [] },
     JobManager: { priorityList: [], sortByPriority: () => {} },
+    FleetManagerOuter: {
+      Regions: ["spc_moon", "spc_eris"],
+      ShipConfig: {},
+    },
+    galaxyRegions: ["gxy_stargate", "gxy_gorddon"],
     EjectManager: {
       priorityList: [],
       isConsumable: resource => ["Food", "Elerium", "Infernite", "Soul_Gem"].includes(resource.id),
@@ -482,6 +513,16 @@ function makeContext() {
         human: { type: "humanoid", traits: { strong: 1, weak: -1 } },
       },
       global: { race: { universe: "standard" } },
+      actions: {
+        space: {
+          spc_moon: { info: { name: "Moon" } },
+          spc_eris: { info: { name: "Eris" } },
+        },
+        galaxy: {
+          gxy_stargate: { info: { name: "Stargate" } },
+          gxy_gorddon: { info: { name: "Gorddon" } },
+        },
+      },
       loc: id => id,
     },
     specialRaceTraits: {},

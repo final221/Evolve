@@ -27,6 +27,7 @@
   "src/parts/04a4-market-storage-settings-schema.js",
   "src/parts/04a5-building-project-settings-schema.js",
   "src/parts/04a6-job-trait-ejector-settings-schema.js",
+  "src/parts/04a7-war-hell-fleet-settings-schema.js",
   "src/parts/04b-settings-defaults.js",
   "src/parts/04c-settings-sync-and-migration.js",
   "src/parts/05a1-automation-evolution-planet.js",
