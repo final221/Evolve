@@ -54,19 +54,33 @@
     }
 
     function adjustTradeRoutes() {
-        let sellWeight = settings.tradeRouteSellExcess
+        let tradePlan = planTradeRouteAssignments();
+        applyTradeRouteAssignments(tradePlan);
+        // Planned trades change visible income, but avoid storing bought/sold resource income changes for later automation.
+        resources.Money.rateOfChange = tradePlan.currentMoneyPerSecond;
+    }
+
+    function planTradeRouteAssignments(tradableResources, context = {}) {
+        const activeSettings = context.settings ?? settings;
+        const activeResources = context.resources ?? resources;
+        const activeGame = context.game ?? game;
+        const manager = context.manager ?? MarketManager;
+        const activeGovernor = context.governor ?? getGovernor();
+        const groupByPriority = context.buildPriorityList ?? buildPriorityList;
+
+        let sellWeight = activeSettings.tradeRouteSellExcess
             ? (resource) => (resource.usefulRatio >= 1 ? resource.tradeSellPrice * 1000 : resource.usefulRatio)
             : (resource) => (resource.storageRatio >= 0.99 ? resource.tradeSellPrice * 1000 : resource.usefulRatio);
 
-        let tradableResources = MarketManager.priorityList
+        tradableResources = (tradableResources ?? manager.priorityList)
           .filter(r => r.isRoutesUnlocked() && (r.autoTradeBuyEnabled || r.autoTradeSellEnabled))
           .sort((a, b) => sellWeight(b) - sellWeight(a));
         let requiredTradeRoutes = {};
-        let currentMoneyPerSecond = resources.Money.rateOfChange;
+        let currentMoneyPerSecond = activeResources.Money.rateOfChange;
         let tradeRoutesUsed = 0;
-        let importRouteCap = MarketManager.getImportRouteCap();
-        let exportRouteCap = MarketManager.getExportRouteCap();
-        let [maxTradeRoutes, unmanagedTradeRoutes] = MarketManager.getMaxTradeRoutes();
+        let importRouteCap = manager.getImportRouteCap();
+        let exportRouteCap = manager.getExportRouteCap();
+        let [maxTradeRoutes, unmanagedTradeRoutes] = manager.getMaxTradeRoutes();
 
         // Fill trade routes with selling
         for (let i = 0; i < tradableResources.length; i++) {
@@ -77,8 +91,8 @@
             requiredTradeRoutes[resource.id] = 0;
 
             if (tradeRoutesUsed >= maxTradeRoutes
-                || (game.global.race['banana'] && tradeRoutesUsed > 0)
-                || (settings.tradeRouteSellExcess
+                || (activeGame.global.race['banana'] && tradeRoutesUsed > 0)
+                || (activeSettings.tradeRouteSellExcess
                   ? resource.usefulRatio < 1
                   : resource.storageRatio < 0.99)) {
                 continue;
@@ -91,17 +105,17 @@
                 currentMoneyPerSecond += resource.tradeSellPrice * routesToAssign;
             }
         }
-        let minimumAllowedMoneyPerSecond = Math.min(resources.Money.maxQuantity - resources.Money.currentQuantity, Math.max(settings.tradeRouteMinimumMoneyPerSecond, settings.tradeRouteMinimumMoneyPercentage / 100 * currentMoneyPerSecond));
+        let minimumAllowedMoneyPerSecond = Math.min(activeResources.Money.maxQuantity - activeResources.Money.currentQuantity, Math.max(activeSettings.tradeRouteMinimumMoneyPerSecond, activeSettings.tradeRouteMinimumMoneyPercentage / 100 * currentMoneyPerSecond));
 
         // Init adjustment, and sort groups by priorities
-        let priorityList = buildPriorityList(tradableResources, (resource) => {
+        let priorityList = groupByPriority(tradableResources, (resource) => {
             if (!resource.autoTradeBuyEnabled) {
                 return 0;
             }
             requiredTradeRoutes[resource.id] = requiredTradeRoutes[resource.id] ?? 0;
 
             if (resource.autoTradeWeighting <= 0
-                || (settings.tradeRouteSellExcess
+                || (activeSettings.tradeRouteSellExcess
                   ? resource.usefulRatio > 0.99
                   : resource.storageRatio > 0.98)) {
                 return 0;
@@ -110,11 +124,11 @@
             let priority = resource.autoTradePriority;
             if (resource.isDemanded()) {
                 priority = Math.max(priority, 100);
-                if (!resources.Money.isDemanded()) {
+                if (!activeResources.Money.isDemanded()) {
                     // Resource demanded, money not demanded - ignore min money, and spend as much as possible
                     minimumAllowedMoneyPerSecond = 0;
                 }
-            } else if ((priority < 100 && priority !== -1) && resources.Money.isDemanded()) {
+            } else if ((priority < 100 && priority !== -1) && activeResources.Money.isDemanded()) {
                 // Don't buy resources with low priority when money is demanded
                 return 0;
             }
@@ -125,7 +139,7 @@
         // Calculate amount of routes per resource
         let resSorter = (a, b) => ((requiredTradeRoutes[a.id] / a.autoTradeWeighting) - (requiredTradeRoutes[b.id] / b.autoTradeWeighting)) || b.autoTradeWeighting - a.autoTradeWeighting;
         let remainingRoutes, unassignStep;
-        if (getGovernor() === "entrepreneur") {
+        if (activeGovernor === "entrepreneur") {
             remainingRoutes = tradeRoutesUsed - unmanagedTradeRoutes;
             unassignStep = 2;
         } else {
@@ -161,7 +175,7 @@
                         if (requiredTradeRoutes[otherId] === undefined) {
                             continue
                         }
-                        let otherResource = resources[otherId];
+                        let otherResource = activeResources[otherId];
                         let currentRequired = requiredTradeRoutes[otherId];
                         if (currentRequired >= 0 || resource === otherResource) {
                             continue;
@@ -182,6 +196,15 @@
             }
         }
 
+        return {
+            tradableResources,
+            requiredTradeRoutes,
+            currentMoneyPerSecond,
+        };
+    }
+
+    function applyTradeRouteAssignments(tradePlan, manager = MarketManager) {
+        let { tradableResources, requiredTradeRoutes } = tradePlan;
         // Adjust our trade routes - always adjust towards zero first to free up trade routes
         let adjustmentTradeRoutes = [];
         for (let i = 0; i < tradableResources.length; i++) {
@@ -192,13 +215,13 @@
             adjustmentTradeRoutes[i] = requiredTradeRoutes[resource.id] - resource.tradeRoutes;
 
             if (requiredTradeRoutes[resource.id] === 0 && resource.tradeRoutes !== 0) {
-                MarketManager.zeroTradeRoutes(resource);
+                manager.zeroTradeRoutes(resource);
                 adjustmentTradeRoutes[i] = 0;
             } else if (adjustmentTradeRoutes[i] > 0 && resource.tradeRoutes < 0) {
-                MarketManager.addTradeRoutes(resource, adjustmentTradeRoutes[i]);
+                manager.addTradeRoutes(resource, adjustmentTradeRoutes[i]);
                 adjustmentTradeRoutes[i] = 0;
             } else if (adjustmentTradeRoutes[i] < 0 && resource.tradeRoutes > 0) {
-                MarketManager.removeTradeRoutes(resource, -1 * adjustmentTradeRoutes[i]);
+                manager.removeTradeRoutes(resource, -1 * adjustmentTradeRoutes[i]);
                 adjustmentTradeRoutes[i] = 0;
             }
         }
@@ -211,14 +234,10 @@
             }
 
             if (adjustmentTradeRoutes[i] > 0) {
-                MarketManager.addTradeRoutes(resource, adjustmentTradeRoutes[i]);
+                manager.addTradeRoutes(resource, adjustmentTradeRoutes[i]);
             } else if (adjustmentTradeRoutes[i] < 0) {
-                MarketManager.removeTradeRoutes(resource, -1 * adjustmentTradeRoutes[i]);
+                manager.removeTradeRoutes(resource, -1 * adjustmentTradeRoutes[i]);
             }
         }
-        // It does change rates of changes of resources, but we don't want to store this changes.
-        // Sold resources can be easily reclaimed, and we want to be able to use it for production, ejecting, upkeep, etc, so let's pretend they're still here
-        // And bought resources are dungerous to use - we don't want to end with negative income after recalculating trades
-        resources.Money.rateOfChange = currentMoneyPerSecond;
     }
 
