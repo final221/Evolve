@@ -241,66 +241,10 @@
     }
 
     function resetJobSettings(reset) {
-        JobManager.priorityList = Object.values(jobs);
-        let def = {
-            autoJobs: false,
-            autoCraftsmen: false,
-            jobSetDefault: true,
-            jobManageServants: true,
-            jobLumberWeighting: 50,
-            jobQuarryWeighting: 50,
-            jobCrystalWeighting: 50,
-            jobScavengerWeighting: 5,
-            jobRaiderWeighting: 20,
-            jobForagerWeighting: 50,
-            jobDisableMiners: true,
-        }
-
-        for (let i = 0; i < JobManager.priorityList.length; i++) {
-            let job = JobManager.priorityList[i];
-            let id = job._originalId;
-
-            def['job_' + id] = true; // autoJobEnabled
-            def['job_p_' + id] = i; // priority
-
-            if (job.is.smart) {
-                def['job_s_' + id] = true; // smart
-            }
-        }
-
-        const setBreakpoints = (job, b1, b2, b3) => { // breakpoins
-            def['job_b1_' + job._originalId] = b1;
-            def['job_b2_' + job._originalId] = b2;
-            def['job_b3_' + job._originalId] = b3;
-        };
-        setBreakpoints(jobs.Colonist, -1, -1, -1);
-        setBreakpoints(jobs.Teamster, 10, -1, -1);
-        setBreakpoints(jobs.Meditator, -1, -1, -1);
-        setBreakpoints(jobs.Hunter, -1, -1, -1);
-        setBreakpoints(jobs.Farmer, -1, -1, -1);
-        setBreakpoints(jobs.Forager, 4, 10, 0);
-        setBreakpoints(jobs.Lumberjack, 4, 10, 0);
-        setBreakpoints(jobs.QuarryWorker, 4, 10, 0);
-        setBreakpoints(jobs.CrystalMiner, 2, 5, 0);
-        setBreakpoints(jobs.Scavenger, 0, 0, 0);
-
-        setBreakpoints(jobs.TitanColonist, -1, -1, -1);
-        setBreakpoints(jobs.PitMiner, 1, 12, -1);
-        setBreakpoints(jobs.Miner, 3, 5, -1);
-        setBreakpoints(jobs.CoalMiner, 2, 4, -1);
-        setBreakpoints(jobs.CementWorker, 4, 8, -1);
-        setBreakpoints(jobs.Professor, 6, 10, -1);
-        setBreakpoints(jobs.Scientist, 3, 6, -1);
-        setBreakpoints(jobs.Entertainer, 2, 5, -1);
-        setBreakpoints(jobs.HellSurveyor, 1, 1, -1);
-        setBreakpoints(jobs.SpaceMiner, 1, 3, -1);
-        setBreakpoints(jobs.Torturer, 1, 1, -1);
-        setBreakpoints(jobs.Archaeologist, 1, 1, -1);
-        setBreakpoints(jobs.GhostTrapper, 1, 1, -1);
-        setBreakpoints(jobs.ElysiumMiner, 1, 1, -1);
-        setBreakpoints(jobs.Banker, 3, 5, -1);
-        setBreakpoints(jobs.Priest, 0, 0, -1);
-        setBreakpoints(jobs.Unemployed, 0, 0, 0);
+        let schema = getJobTraitEjectorSettingsSchema().job;
+        JobManager.priorityList = schema.priorityRows();
+        let def = {};
+        applySettingsSchemaDefaults(def, schema);
 
         applySettings(def, reset);
         JobManager.sortByPriority();
@@ -516,49 +460,10 @@
     }
 
     function resetEjectorSettings(reset) {
-        if (game.global.race.universe === "magic") {
-            EjectManager.priorityList = Object.values(resources)
-              .filter(r => EjectManager.isConsumable(r))
-              .sort((a, b) => b.atomicMass - a.atomicMass);
-        } else {
-            EjectManager.priorityList = Object.values(resources)
-              .filter(r => EjectManager.isConsumable(r) && r !== resources.Elerium && r !== resources.Infernite)
-              .sort((a, b) => b.atomicMass - a.atomicMass);
-            EjectManager.priorityList.unshift(resources.Infernite);
-            EjectManager.priorityList.unshift(resources.Elerium);
-        }
-
-        SupplyManager.priorityList = Object.values(resources)
-          .filter(r => SupplyManager.isConsumable(r))
-          .sort((a, b) => SupplyManager.supplyIn(b.id) - SupplyManager.supplyIn(a.id));
-
-        NaniteManager.priorityList = Object.values(resources)
-          .filter(r => NaniteManager.isConsumable(r))
-          .sort((a, b) => b.atomicMass - a.atomicMass);
-
-        let def = {
-            autoEject: false,
-            autoSupply: false,
-            autoNanite: false,
-            ejectMode: "cap",
-            supplyMode: "mixed",
-            naniteMode: "full",
-            prestigeWhiteholeStabiliseMass: true,
-            prestigeWhiteholeStabiliseCooldown: 120,
-        }
-
-        for (let resource of EjectManager.priorityList) {
-            def['res_eject' + resource.id] = resource.is.tradable ?? false;
-        }
-        for (let resource of SupplyManager.priorityList) {
-            def['res_supply' + resource.id] = resource.is.tradable ?? false;
-        }
-        for (let resource of NaniteManager.priorityList) {
-            def['res_nanite' + resource.id] = resource.is.tradable ?? false;
-        }
-
-        def['res_eject' + resources.Elerium.id] = true;
-        def['res_eject' + resources.Infernite.id] = true;
+        let schema = getJobTraitEjectorSettingsSchema().ejector;
+        schema.preparePriorityRows();
+        let def = {};
+        applySettingsSchemaDefaults(def, schema);
 
         applySettings(def, reset);
     }

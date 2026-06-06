@@ -155,67 +155,7 @@
         addSettingsToggle(currentNode, "prestigeWhiteholeStabiliseMass", "Stabilize blackhole", "Stabilizes the blackhole with exotic materials, disabled on whitehole runs");
         addSettingsNumber(currentNode, "prestigeWhiteholeStabiliseCooldown", "Cooldown between stabilizes", "Waits this many seconds between stabilizes. Stabilizing too frequently may cause significant lag in late game due to frequent full page redraws. Set to 0 to disable cooldown.");
 
-        currentNode.append(`
-          <table style="width:100%">
-            <tr>
-              <th class="has-text-warning" style="width:20%">Resource</th>
-              <th class="has-text-warning" style="width:20%">Atomic Mass</th>
-              <th class="has-text-warning" style="width:10%">Eject</th>
-              <th class="has-text-warning" style="width:10%">Nanite</th>
-              <th class="has-text-warning" style="width:30%">Supply Value</th>
-              <th class="has-text-warning" style="width:10%">Supply</th>
-            </tr>
-            <tbody id="script_ejectorTableBody"></tbody>
-          </table>`);
-
-        let tableBodyNode = $('#script_ejectorTableBody');
-        let newTableBodyText = "";
-
-        let tabResources = [];
-        for (let id in resources) {
-            let resource = resources[id];
-            if (EjectManager.isConsumable(resource) || SupplyManager.isConsumable(resource) || NaniteManager.isConsumable(resource)) {
-                tabResources.push(resource);
-                newTableBodyText += `<tr><td id="script_eject_${resource.id}" style="width:20%"></td><td style="width:20%"></td><td style="width:10%"></td><td style="width:10%"></td><td style="width:30%"></td><td style="width:10%"></td></tr>`;
-            }
-        }
-
-        tableBodyNode.append($(newTableBodyText));
-
-        for (let i = 0; i < tabResources.length; i++) {
-            let resource = tabResources[i];
-            let ejectElement = $('#script_eject_' + resource.id);
-
-            let color = (resource === resources.Elerium || resource === resources.Infernite) ? "has-text-caution" :
-                resource.isCraftable() ? "has-text-danger" :
-                !resource.is.tradable ? "has-text-advanced" :
-                "has-text-info";
-
-            ejectElement.append(buildTableLabel(resource.name, "", color));
-            ejectElement = ejectElement.next();
-
-            if (resource.atomicMass > 0) {
-                ejectElement.append(`<span class="mass"><span class="has-text-warning">${resource.atomicMass}</span> kt</span>`);
-            }
-            ejectElement = ejectElement.next();
-
-            if (EjectManager.isConsumable(resource)) {
-                addTableToggle(ejectElement, "res_eject" + resource.id);
-            }
-            ejectElement = ejectElement.next();
-
-            if (NaniteManager.isConsumable(resource)) {
-                addTableToggle(ejectElement, "res_nanite" + resource.id);
-            }
-
-            if (SupplyManager.isConsumable(resource)) {
-                ejectElement = ejectElement.next();
-                ejectElement.append(`<span class="mass">Export <span class="has-text-caution">${SupplyManager.supplyOut(resource.id)}</span>, Gain <span class="has-text-success">${SupplyManager.supplyIn(resource.id)}</span></span>`);
-
-                ejectElement = ejectElement.next();
-                addTableToggle(ejectElement, "res_supply" + resource.id);
-            }
-        }
+        renderSettingsTable(currentNode, getJobTraitEjectorSettingsSchema().ejector.tables.ejector);
 
         document.documentElement.scrollTop = document.body.scrollTop = currentScrollPosition;
     }

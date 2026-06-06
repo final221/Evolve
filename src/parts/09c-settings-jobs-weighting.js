@@ -29,73 +29,7 @@
         addSettingsNumber(currentNode, "jobForagerWeighting", "Final Forager Weighting", "AFTER allocating breakpoints this weighting will be used to split weighted jobs");
         addSettingsToggle(currentNode, "jobDisableMiners", "Disable miners in Andromeda", "Disable Miners and Coal Miners after reaching Andromeda");
 
-        currentNode.append(`
-          <table style="width:100%">
-            <tr>
-              <th class="has-text-warning" style="width:35%">Job</th>
-              <th class="has-text-warning" style="width:17%">1st Pass</th>
-              <th class="has-text-warning" style="width:17%">2nd Pass</th>
-              <th class="has-text-warning" style="width:17%">3rd Pass</th>
-              <th class="has-text-warning" style="width:9%" title="When enabled script will limit amount of assigned workers down to maximum useful quantity, moving idling workers to other jobs">Smart</th>
-              <td style="width:5%"><span id="script_resetJobsPriority" class="script-refresh"></span></td>
-            </tr>
-            <tbody id="script_jobTableBody"></tbody>
-          </table>`);
-
-        $('#script_resetJobsPriority').on("click", function(){
-            if (confirm("Are you sure you wish to reset jobs priority?")) {
-                JobManager.priorityList = Object.values(jobs);
-                for (let i = 0; i < JobManager.priorityList.length; i++) {
-                    let id = JobManager.priorityList[i]._originalId;
-                    settingsRaw['job_p_' + id] = i;
-                }
-                updateSettingsFromState();
-                updateJobSettingsContent();
-            }
-        });
-
-        let tableBodyNode = $('#script_jobTableBody');
-        let newTableBodyText = "";
-
-        for (let i = 0; i < JobManager.priorityList.length; i++) {
-            const job = JobManager.priorityList[i];
-            newTableBodyText += `<tr value="${job._originalId}" class="script-draggable"><td id="script_${job._originalId}" style="width:35%"></td><td style="width:17%"></td><td style="width:17%"></td><td style="width:17%"></td><td style="width:9%"></td><td style="width:5%"></td></tr>`;
-        }
-        tableBodyNode.append($(newTableBodyText));
-
-        for (let i = 0; i < JobManager.priorityList.length; i++) {
-            const job = JobManager.priorityList[i];
-            let jobElement = $('#script_' + job._originalId);
-
-            buildJobSettingsToggle(jobElement, job);
-            jobElement = jobElement.next();
-            buildJobSettingsInput(jobElement, job, 1);
-            jobElement = jobElement.next();
-            buildJobSettingsInput(jobElement, job, 2);
-            jobElement = jobElement.next();
-            buildJobSettingsInput(jobElement, job, 3);
-            jobElement = jobElement.next();
-            if (job.is.smart) {
-                addTableToggle(jobElement, "job_s_" + job._originalId);
-            }
-
-            jobElement = jobElement.next();
-            jobElement.append($('<span class="script-lastcolumn"></span>'));
-        }
-
-        tableBodyNode.sortable({
-            items: "tr:not(.unsortable)",
-            helper: sorterHelper,
-            update: function() {
-                let sortedIds = tableBodyNode.sortable('toArray', {attribute: 'value'});
-                for (let i = 0; i < sortedIds.length; i++) {
-                    settingsRaw['job_p_' + sortedIds[i]] = i;
-                }
-
-                JobManager.sortByPriority();
-                updateSettingsFromState();
-            },
-        });
+        renderSettingsTable(currentNode, getJobTraitEjectorSettingsSchema().job.tables.job);
 
         document.documentElement.scrollTop = document.body.scrollTop = currentScrollPosition;
     }
