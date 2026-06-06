@@ -168,73 +168,20 @@
     }
 
     function resetMinorTraitSettings(reset) {
-        MinorTraitManager.priorityList = Object.entries(game.traits)
-          .filter(([id, trait]) => trait.type === 'minor' || id === 'mastery' || id === 'fortify')
-          .map(([id, trait]) => new MinorTrait(id));
-
-        let def = {
-            autoMinorTrait: false,
-            shifterGenus: "ignore",
-            imitateRace: "ignore",
-            buildingShrineType: "know",
-            slaveIncome: 25000,
-            jobScalePop: true,
-            psychicPower: "auto",
-            psychicBoostRes: "auto",
-            wishMinor: "none",
-            wishMajor: "none",
-
-            autoGenetics: false,
-            geneticsSequence: "none",
-            geneticsBoost: "none",
-            geneticsAssemble: "auto"
-        };
-
-        for (let i = 0; i < MinorTraitManager.priorityList.length; i++) {
-            let trait = MinorTraitManager.priorityList[i];
-            let id = trait.traitName;
-
-            def['mTrait_' + id] = true; // enabled
-            def['mTrait_p_' + id] = i; // priority
-            def['mTrait_w_' + id] = 1; // weighting
-        }
-
-        Object.values(ocularPowerData).forEach(v => {
-            def['ocularPower_' + v.id] = true;
-            def['ocularPower_p_' + v.id] = 100;
-        });
+        let schema = getJobTraitEjectorSettingsSchema().trait.minor;
+        MinorTraitManager.priorityList = schema.priorityRows();
+        let def = {};
+        applySettingsSchemaDefaults(def, schema);
 
         applySettings(def, reset);
         MinorTraitManager.sortByPriority();
     }
 
     function resetMutableTraitSettings(reset) {
-        let unobtainableTraits = ["xenophobic", "rigid", "soul_eater"];
-        MutableTraitManager.priorityList = Object.entries(game.traits)
-          .filter(([id, trait]) => (trait.type === "major" || trait.type === "genus") && !unobtainableTraits.includes(id))
-          .map(([id, trait]) => trait.type === "major" ? new MajorTrait(id) : new GenusTrait(id))
-          .sort((a, b) => Object.keys(poly.genus_traits).indexOf(a.genus) - Object.keys(poly.genus_traits).indexOf(b.genus) || a.type < b.type);
-
-        let def = {
-            autoMutateTraits: false,
-            doNotGoBelowPlasmidSoftcap: true,
-            minimumPlasmidsToPreserve: 0,
-        };
-
-        for (let i = 0; i < MutableTraitManager.priorityList.length; i++) {
-            let trait = MutableTraitManager.priorityList[i];
-            let id = trait.traitName;
-
-            def["mutableTrait_p_" + id] = i; // priority
-            def["mutableTrait_purge_" + id] = false; // auto remove disabled
-
-            if (trait.isGainable()) {
-                def["mutableTrait_gain_" + id] = false; // auto add disabled
-            }
-            if (poly.neg_roll_traits.includes(id)) {
-                def["mutableTrait_reset_" + id] = false; // auto reset disabled
-            }
-        }
+        let schema = getJobTraitEjectorSettingsSchema().trait.mutable;
+        MutableTraitManager.priorityList = schema.priorityRows();
+        let def = {};
+        applySettingsSchemaDefaults(def, schema);
 
         applySettings(def, reset);
         MutableTraitManager.sortByPriority();

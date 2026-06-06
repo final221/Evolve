@@ -31,6 +31,13 @@
 
         const consumableResources = () => Object.values(resources)
             .filter(resource => EjectManager.isConsumable(resource) || SupplyManager.isConsumable(resource) || NaniteManager.isConsumable(resource));
+        const minorTraitRows = () => Object.entries(game.traits)
+            .filter(([id, trait]) => trait.type === "minor" || id === "mastery" || id === "fortify")
+            .map(([id, trait]) => new MinorTrait(id));
+        const mutableTraitRows = () => Object.entries(game.traits)
+            .filter(([id, trait]) => (trait.type === "major" || trait.type === "genus") && !["xenophobic", "rigid", "soul_eater"].includes(id))
+            .map(([id, trait]) => trait.type === "major" ? new MajorTrait(id) : new GenusTrait(id))
+            .sort((a, b) => Object.keys(poly.genus_traits).indexOf(a.genus) - Object.keys(poly.genus_traits).indexOf(b.genus) || a.type < b.type);
 
         return {
             job: {
@@ -122,6 +129,154 @@
                                     updateSettingsFromState();
                                 },
                             });
+                        },
+                    },
+                },
+            },
+            trait: {
+                minor: {
+                    defaults: {
+                        autoMinorTrait: false,
+                        shifterGenus: "ignore",
+                        imitateRace: "ignore",
+                        buildingShrineType: "know",
+                        slaveIncome: 25000,
+                        jobScalePop: true,
+                        psychicPower: "auto",
+                        psychicBoostRes: "auto",
+                        wishMinor: "none",
+                        wishMajor: "none",
+
+                        autoGenetics: false,
+                        geneticsSequence: "none",
+                        geneticsBoost: "none",
+                        geneticsAssemble: "auto",
+                    },
+                    priorityRows: minorTraitRows,
+                    defaultGroups: [
+                        {
+                            rows: () => MinorTraitManager.priorityList,
+                            settings: [
+                                {key: row => "mTrait_" + row.traitName, value: true},
+                                {key: (row, index) => "mTrait_p_" + row.traitName, value: (row, index) => index},
+                                {key: row => "mTrait_w_" + row.traitName, value: 1},
+                            ],
+                        },
+                        {
+                            rows: () => Object.values(ocularPowerData),
+                            settings: [
+                                {key: row => "ocularPower_" + row.id, value: true},
+                                {key: row => "ocularPower_p_" + row.id, value: 100},
+                            ],
+                        },
+                    ],
+                    tables: {
+                        ocular: {
+                            bodyId: "script_ocularPowersTableBody",
+                            rows: () => Object.values(ocularPowerData),
+                            rowId: row => row.id,
+                            columns: [
+                                {header: "Name", width: "50%", color: "has-text-warning", render: (cell, row) => cell.append(buildTableLabel(game.loc(`ocular_${row.id}`), game.loc(`ocular_${row.id}_desc`, row.locParam)))},
+                                {header: "Enabled", width: "25%", color: "has-text-warning", render: (cell, row) => addTableToggle(cell, "ocularPower_" + row.id)},
+                                {header: "Priority", width: "25%", color: "has-text-warning", render: (cell, row) => addTableInput(cell, "ocularPower_p_" + row.id)},
+                            ],
+                        },
+                        minor: {
+                            bodyId: "script_minorTraitTableBody",
+                            rows: () => MinorTraitManager.priorityList,
+                            rowValue: row => row.traitName,
+                            rowClass: () => "script-draggable",
+                            columns: [
+                                {header: "Minor Trait", width: "20%", color: "has-text-warning", render: (cell, row) => cell.append(buildTableLabel(game.loc("trait_" + row.traitName + "_name"), game.loc("trait_" + row.traitName)))},
+                                {header: "Enabled", width: "20%", color: "has-text-warning", render: (cell, row) => addTableToggle(cell, "mTrait_" + row.traitName)},
+                                {header: "Weighting", width: "20%", color: "has-text-warning", render: (cell, row) => addTableInput(cell, "mTrait_w_" + row.traitName)},
+                                {header: "", width: "40%", render: cell => cell.append('<span class="script-lastcolumn"></span>')},
+                            ],
+                            afterRender: tableBodyNode => tableBodyNode.sortable({
+                                items: "tr:not(.unsortable)",
+                                helper: sorterHelper,
+                                update: function() {
+                                    let minorTraitNames = tableBodyNode.sortable("toArray", {attribute: "value"});
+                                    for (let i = 0; i < minorTraitNames.length; i++) {
+                                        settingsRaw["mTrait_p_" + minorTraitNames[i]] = i;
+                                    }
+
+                                    MinorTraitManager.sortByPriority();
+                                    updateSettingsFromState();
+                                },
+                            }),
+                        },
+                    },
+                },
+                mutable: {
+                    defaults: {
+                        autoMutateTraits: false,
+                        doNotGoBelowPlasmidSoftcap: true,
+                        minimumPlasmidsToPreserve: 0,
+                    },
+                    priorityRows: mutableTraitRows,
+                    defaultGroups: [
+                        {
+                            rows: () => MutableTraitManager.priorityList,
+                            settings: [
+                                {key: (row, index) => "mutableTrait_p_" + row.traitName, value: (row, index) => index},
+                                {key: row => "mutableTrait_purge_" + row.traitName, value: false},
+                                {key: row => "mutableTrait_gain_" + row.traitName, value: false, when: row => row.isGainable()},
+                                {key: row => "mutableTrait_reset_" + row.traitName, value: false, when: row => poly.neg_roll_traits.includes(row.traitName)},
+                            ],
+                        },
+                    ],
+                    tables: {
+                        mutable: {
+                            bodyId: "script_mutateTraitTableBody",
+                            rows: () => MutableTraitManager.priorityList,
+                            rowValue: row => row.traitName,
+                            rowClass: () => "script-draggable",
+                            headerHtml: `
+        <tr>
+            <th class="has-text-warning" style="width:30%">Species / Genus</th>
+            <th class="has-text-warning" style="width:25%">Trait</th>
+            <th class="has-text-warning" style="width:10%">Cost</th>
+            <th class="has-text-warning" style="width:10%">Add</th>
+            <th class="has-text-warning" style="width:10%">Remove</th>
+            <th class="has-text-warning" style="width:10%">Reset</th>
+            <th class="has-text-warning" style="width:5%"></th>
+        </tr>`,
+                            columns: [
+                                {width: "30%", render: (cell, row) => cell.append(buildTableLabel(row.source === "" ? "-" : game.loc((row.type === "major" ? "race_" : "genelab_genus_") + row.source), row.type === "major" ? "Major" : "Genus", row.type === "genus" ? "has-text-special" : "has-text"))},
+                                {width: "25%", render: (cell, row) => cell.append(buildTableLabel(row.name, game.loc("trait_" + row.traitName), row.isPositive ? "has-text-success" : "has-text-danger"))},
+                                {width: "10%", render: (cell, row) => cell.append(buildTableLabel(`${row.baseCost * 5}`, `${row.baseCost * 5 * mutationCostMultipliers["custom"]["gain"]} for Custom${row.traitName !== "ooze" ? " and Sludge" : ""}`))},
+                                {width: "10%", render: (cell, row) => {
+                                    if (row.isGainable()) {
+                                        addTableToggle(cell, "mutableTrait_gain_" + row.traitName);
+                                    }
+                                }},
+                                {width: "10%", render: (cell, row) => {
+                                    addTableToggle(cell, "mutableTrait_purge_" + row.traitName);
+                                    if (row.isGainable()) {
+                                        makeToggleSwitchesMutuallyExclusive($(".script_mutableTrait_gain_" + row.traitName), "mutableTrait_gain_" + row.traitName, $(".script_mutableTrait_purge_" + row.traitName), "mutableTrait_purge_" + row.traitName);
+                                    }
+                                }},
+                                {width: "10%", render: (cell, row) => {
+                                    if (poly.neg_roll_traits.includes(row.traitName)) {
+                                        addTableToggle(cell, "mutableTrait_reset_" + row.traitName);
+                                    }
+                                }},
+                                {width: "5%", render: cell => cell.append('<span class="script-lastcolumn"></span>')},
+                            ],
+                            afterRender: tableBodyNode => tableBodyNode.sortable({
+                                items: "tr:not(.unsortable)",
+                                helper: sorterHelper,
+                                update: function() {
+                                    let mutableTraitNames = tableBodyNode.sortable("toArray", {attribute: "value"});
+                                    for (let i = 0; i < mutableTraitNames.length; i++) {
+                                        settingsRaw["mutableTrait_p_" + mutableTraitNames[i]] = i;
+                                    }
+
+                                    MutableTraitManager.sortByPriority();
+                                    updateSettingsFromState();
+                                },
+                            }),
                         },
                     },
                 },

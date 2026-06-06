@@ -25,6 +25,7 @@ checkProductionDefaults(context);
 checkMarketStorageDefaults(context);
 checkBuildingProjectDefaults(context);
 checkJobEjectorDefaults(context);
+checkTraitDefaults(context);
 
 console.log("Settings schema regression checks passed");
 
@@ -156,6 +157,39 @@ function checkJobEjectorDefaults(context) {
   assert.equal(ejectorDef.res_ejectSoul_Gem, false, "non-tradable eject resources should default disabled");
 }
 
+function checkTraitDefaults(context) {
+  const schema = context.getJobTraitEjectorSettingsSchema();
+  const minorDef = {};
+  const mutableDef = {};
+
+  context.MinorTraitManager.priorityList = schema.trait.minor.priorityRows();
+  context.applySettingsSchemaDefaults(minorDef, schema.trait.minor);
+
+  assert.equal(minorDef.autoMinorTrait, false, "minor trait automation should default off");
+  assert.equal(minorDef.shifterGenus, "ignore", "genus mimic should default ignored");
+  assert.equal(minorDef.imitateRace, "ignore", "race imitation should default ignored");
+  assert.equal(minorDef.autoGenetics, false, "genetics automation should default off");
+  assert.equal(minorDef.geneticsAssemble, "auto", "gene assembly should keep automatic default");
+  assert.equal(minorDef.mTrait_mastery, true, "mastery minor trait should default enabled");
+  assert.equal(minorDef.mTrait_p_mastery, 0, "minor trait priorities should follow manager order");
+  assert.equal(minorDef.mTrait_w_mastery, 1, "minor trait weighting should default to one");
+  assert.equal(minorDef.ocularPower_capture, true, "ocular powers should default enabled");
+  assert.equal(minorDef.ocularPower_p_capture, 100, "ocular power priority should default to 100");
+
+  context.MutableTraitManager.priorityList = schema.trait.mutable.priorityRows();
+  context.applySettingsSchemaDefaults(mutableDef, schema.trait.mutable);
+
+  assert.equal(mutableDef.autoMutateTraits, false, "mutable trait automation should default off");
+  assert.equal(mutableDef.doNotGoBelowPlasmidSoftcap, true, "plasmid softcap protection should default enabled");
+  assert.equal(mutableDef.minimumPlasmidsToPreserve, 0, "minimum preserved plasmids should default zero");
+  assert.equal(mutableDef.mutableTrait_p_strong, 0, "mutable trait priorities should follow sorted manager order");
+  assert.equal(mutableDef.mutableTrait_purge_strong, false, "mutable trait purge should default disabled");
+  assert.equal(mutableDef.mutableTrait_gain_strong, false, "gainable major traits should get disabled gain default");
+  assert.equal(mutableDef.mutableTrait_reset_weak, false, "negative-roll traits should get disabled reset default");
+  assert.equal(Object.hasOwn(mutableDef, "mutableTrait_gain_herbivore"), false, "genus traits should not get gain defaults");
+  assert.equal(Object.hasOwn(mutableDef, "mutableTrait_p_xenophobic"), false, "unobtainable traits should be excluded");
+}
+
 function makeContext() {
   const resources = Object.fromEntries([
     "Food",
@@ -196,6 +230,43 @@ function makeContext() {
     "Stanene",
     "Adamantite",
   ].map(id => [id, makeResource(id)]));
+
+  const traits = {
+    mastery: { type: "minor", val: 1 },
+    fortify: { type: "minor", val: 1 },
+    sneaky: { type: "minor", val: 1 },
+    strong: { type: "major", val: 2 },
+    weak: { type: "major", val: -2 },
+    herbivore: { type: "genus", val: 1 },
+    xenophobic: { type: "major", val: -5 },
+  };
+  const MinorTrait = function(traitName) {
+    this.traitName = traitName;
+  };
+  const MajorTrait = function(traitName) {
+    this.traitName = traitName;
+    this.baseCost = Math.abs(traits[traitName].val);
+    this.isPositive = traits[traitName].val >= 0;
+    this.type = "major";
+    this.source = "human";
+    this.genus = "humanoid";
+    this.name = `trait_${traitName}_name`;
+  };
+  MajorTrait.prototype.isGainable = function() {
+    return this.traitName !== "frail" && this.traitName !== "ooze";
+  };
+  const GenusTrait = function(traitName) {
+    this.traitName = traitName;
+    this.baseCost = Math.abs(traits[traitName].val);
+    this.isPositive = traits[traitName].val >= 0;
+    this.type = "genus";
+    this.source = "humanoid";
+    this.genus = "humanoid";
+    this.name = `trait_${traitName}_name`;
+  };
+  GenusTrait.prototype.isGainable = function() {
+    return false;
+  };
 
   const buildings = Object.fromEntries([
     ["Farm", makeBuilding("city-farm", { name: "Farm", switchable: true, smart: true })],
@@ -291,6 +362,15 @@ function makeContext() {
     buildings,
     projects,
     jobs,
+    MinorTrait,
+    MajorTrait,
+    GenusTrait,
+    MinorTraitManager: { priorityList: [], sortByPriority: () => {} },
+    MutableTraitManager: { priorityList: [], sortByPriority: () => {} },
+    ocularPowerData: [
+      { id: "capture" },
+      { id: "boost" },
+    ],
     craftablesList: [],
     sorterHelper: () => {},
     buildTableLabel: value => value,
@@ -346,8 +426,21 @@ function makeContext() {
       priorityList: [],
       isConsumable: resource => ["Food"].includes(resource.id),
     },
-    game: { global: { race: { universe: "standard" } } },
+    game: {
+      traits,
+      races: {
+        custom: { type: "custom", traits: {} },
+        human: { type: "humanoid", traits: { strong: 1, weak: -1 } },
+      },
+      global: { race: { universe: "standard" } },
+      loc: id => id,
+    },
+    specialRaceTraits: {},
+    mutationCostMultipliers: { custom: { gain: 1 } },
+    mutationCostMultipliersGenus: {},
     poly: {
+      genus_traits: { humanoid: { herbivore: 1 } },
+      neg_roll_traits: ["weak"],
       galaxyOffers: [
         { buy: { res: "Deuterium" }, sell: { res: "Food" } },
         { buy: { res: "Cash" }, sell: { res: "Coal" } },

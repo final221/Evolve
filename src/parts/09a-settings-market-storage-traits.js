@@ -169,30 +169,8 @@
         addSettingsToggle(currentNode, "jobScalePop", "High Pop job scale", "Auto Job will automatically scaly breakpoints to match population increase");
 
         addStandardHeading(currentNode, "Ocular Powers");
-        currentNode.append(`
-          <table style="width:100%">
-            <tr>
-              <th class="has-text-warning" style="width:50%">Name</th>
-              <th class="has-text-warning" style="width:25%">Enabled</th>
-              <th class="has-text-warning" style="width:25%">Priority</th>
-            </tr>
-            <tbody id="script_ocularPowersTableBody"></tbody>
-          </table>
-        `);
-        const ocularTableBodyNode = $("#script_ocularPowersTableBody");
-        ocularPowerData.forEach(p => {
-            let tr = $(`<tr><td></td><td></td><td></td></tr>`);
-            tr.appendTo(ocularTableBodyNode);
-
-            let ocularPowerElement = tr.find("td").first();
-            ocularPowerElement.append(buildTableLabel(game.loc(`ocular_${p.id}`), game.loc(`ocular_${p.id}_desc`, p.locParam)));
-
-            ocularPowerElement = ocularPowerElement.next();
-            addTableToggle(ocularPowerElement, `ocularPower_${p.id}`);
-
-            ocularPowerElement = ocularPowerElement.next();
-            addTableInput(ocularPowerElement, `ocularPower_p_${p.id}`);
-        });
+        let traitSchema = getJobTraitEjectorSettingsSchema().trait;
+        renderSettingsTable(currentNode, traitSchema.minor.tables.ocular);
 
         // Minor Traits
         addStandardHeading(currentNode, "Minor Traits");
@@ -214,53 +192,7 @@
                                {val: "auto", label: "Script Managed", hint: "Gene assembling managed by script, allowing to dump excess knowledge at faster rate, matching income"}];
         addSettingsSelect(currentNode, "geneticsAssemble", "Auto Sequence", "Manages genome decoding, and mutations", assembleOptions);
 
-        currentNode.append(`
-          <table style="width:100%">
-            <tr>
-              <th class="has-text-warning" style="width:20%">Minor Trait</th>
-              <th class="has-text-warning" style="width:20%">Enabled</th>
-              <th class="has-text-warning" style="width:20%">Weighting</th>
-              <th class="has-text-warning" style="width:40%"></th>
-            </tr>
-            <tbody id="script_minorTraitTableBody"></tbody>
-          </table>`);
-
-        let tableBodyNode = $('#script_minorTraitTableBody');
-        let newTableBodyText = "";
-
-        for (let i = 0; i < MinorTraitManager.priorityList.length; i++) {
-            const trait = MinorTraitManager.priorityList[i];
-            newTableBodyText += `<tr value="${trait.traitName}" class="script-draggable"><td id="script_minorTrait_${trait.traitName}" style="width:20%"></td><td style="width:20%"></td><td style="width:20%"></td><td style="width:40%"><span class="script-lastcolumn"></span></td></tr>`;
-        }
-        tableBodyNode.append($(newTableBodyText));
-
-        // Build all other minorTraits settings rows
-        for (let i = 0; i < MinorTraitManager.priorityList.length; i++) {
-            const trait = MinorTraitManager.priorityList[i];
-            let minorTraitElement = $('#script_minorTrait_' + trait.traitName);
-
-            minorTraitElement.append(buildTableLabel(game.loc("trait_" + trait.traitName + "_name"), game.loc("trait_" + trait.traitName)));
-
-            minorTraitElement = minorTraitElement.next();
-            addTableToggle(minorTraitElement, "mTrait_" + trait.traitName);
-
-            minorTraitElement = minorTraitElement.next();
-            addTableInput(minorTraitElement, "mTrait_w_" + trait.traitName);
-        }
-
-        tableBodyNode.sortable({
-            items: "tr:not(.unsortable)",
-            helper: sorterHelper,
-            update: function() {
-                let minorTraitNames = tableBodyNode.sortable('toArray', {attribute: 'value'});
-                for (let i = 0; i < minorTraitNames.length; i++) {
-                    settingsRaw['mTrait_p_' + minorTraitNames[i]] = i;
-                }
-
-                MinorTraitManager.sortByPriority();
-                updateSettingsFromState();
-            },
-        });
+        renderSettingsTable(currentNode, traitSchema.minor.tables.minor);
 
         // Trait Mutations
 
@@ -268,73 +200,7 @@
         addSettingsToggle(currentNode, "doNotGoBelowPlasmidSoftcap", "Do not go below Plasmid softcap", "Script will not mutate if the number of remaining plasmids or anti plamids would be lower than the softcap (250 + Phage)");
         addSettingsNumber(currentNode, "minimumPlasmidsToPreserve", "Minimum Plasmids / Anti-Plasmids to preserve", "Script will not mutate if the number of remaining plasmids or anti plamids would be lower than this value");
 
-        currentNode.append(`
-        <table style="width:100%">
-        <tr>
-            <th class="has-text-warning" style="width:30%">Species / Genus</th>
-            <th class="has-text-warning" style="width:25%">Trait</th>
-            <th class="has-text-warning" style="width:10%">Cost</th>
-            <th class="has-text-warning" style="width:10%">Add</th>
-            <th class="has-text-warning" style="width:10%">Remove</th>
-            <th class="has-text-warning" style="width:10%">Reset</th>
-            <th class="has-text-warning" style="width:5%"></th>
-        </tr>
-        <tbody id="script_mutateTraitTableBody"></tbody>
-        </table>`);
-
-        let mutateTraitTableBodyNode = $("#script_mutateTraitTableBody");
-        newTableBodyText = "";
-
-        for (let i = 0; i < MutableTraitManager.priorityList.length; i++) {
-            const trait = MutableTraitManager.priorityList[i];
-            newTableBodyText += `<tr value="${trait.traitName}" class="script-draggable"><td id="script_mutableTrait_${trait.traitName}" style="width:30%"></td><td style="width:25%"></td><td style="width:10%"></td><td style="width:10%"></td><td style="width:10%"></td><td style="width:10%"></td><td style="width:5%"><span class="script-lastcolumn"></span></td></tr>`;
-        }
-        mutateTraitTableBodyNode.append($(newTableBodyText));
-
-        // Build all other mutableTraits settings rows
-        for (let i = 0; i < MutableTraitManager.priorityList.length; i++) {
-            const trait = MutableTraitManager.priorityList[i];
-            let mutableTraitElement = $("#script_mutableTrait_" + trait.traitName);
-
-            mutableTraitElement.append(buildTableLabel(trait.source === "" ? "-" : game.loc((trait.type === "major" ? "race_" : "genelab_genus_") + trait.source), trait.type === "major" ? "Major" : "Genus", trait.type === "genus" ? "has-text-special" : "has-text"));
-
-            mutableTraitElement = mutableTraitElement.next();
-            mutableTraitElement.append(buildTableLabel(trait.name, game.loc("trait_" + trait.traitName), trait.isPositive ? "has-text-success" : "has-text-danger"));
-
-            mutableTraitElement = mutableTraitElement.next();
-            mutableTraitElement.append(buildTableLabel(`${trait.baseCost * 5}`, `${trait.baseCost * 5 * mutationCostMultipliers['custom']['gain']} for Custom${trait.traitName !== 'ooze' ? " and Sludge" : ""}`));
-
-            mutableTraitElement = mutableTraitElement.next();
-            if (trait.isGainable()) { // TODO check if beast_of_burden can be gained by other races during winter event.
-                addTableToggle(mutableTraitElement, "mutableTrait_gain_" + trait.traitName);
-            }
-
-            mutableTraitElement = mutableTraitElement.next();
-            addTableToggle(mutableTraitElement, "mutableTrait_purge_" + trait.traitName);
-
-            if (trait.isGainable()) {
-                makeToggleSwitchesMutuallyExclusive($(".script_mutableTrait_gain_" + trait.traitName), "mutableTrait_gain_" + trait.traitName, $(".script_mutableTrait_purge_" + trait.traitName), "mutableTrait_purge_" + trait.traitName);
-            }
-
-            mutableTraitElement = mutableTraitElement.next();
-            if (poly.neg_roll_traits.includes(trait.traitName)) {
-                addTableToggle(mutableTraitElement, "mutableTrait_reset_" + trait.traitName);
-            }
-        }
-
-        mutateTraitTableBodyNode.sortable({
-            items: "tr:not(.unsortable)",
-            helper: sorterHelper,
-            update: function() {
-                let mutableTraitNames = mutateTraitTableBodyNode.sortable("toArray", {attribute: "value"});
-                for (let i = 0; i < mutableTraitNames.length; i++) {
-                    settingsRaw["mutableTrait_p_" + mutableTraitNames[i]] = i;
-                }
-
-                MutableTraitManager.sortByPriority();
-                updateSettingsFromState();
-            },
-        });
+        renderSettingsTable(currentNode, traitSchema.mutable.tables.mutable);
 
         document.documentElement.scrollTop = document.body.scrollTop = currentScrollPosition;
     }
