@@ -37,6 +37,7 @@ The build/check scripts verify that the ordered parts parse as JavaScript, the f
 - `04a5-building-project-settings-schema.js`: building project settings schema.
 - `04a6-job-trait-ejector-settings-schema.js`: job trait ejector settings schema.
 - `04a7-war-hell-fleet-settings-schema.js`: war hell fleet settings schema.
+- `04a8-planet-settings-schema.js`: planet settings schema.
 - `04b-settings-defaults.js`: default/reset settings for every settings surface.
 - `04c-settings-sync-and-migration.js`: settings state sync, standalone settings, migrations, achievement lookup, queued settings.
 - `05a1-automation-evolution-planet.js`: evolution target, universe, planet generation, and planet selection automation.

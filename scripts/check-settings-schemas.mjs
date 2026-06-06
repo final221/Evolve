@@ -10,6 +10,7 @@ const schemaSources = await Promise.all([
   "04a5-building-project-settings-schema.js",
   "04a6-job-trait-ejector-settings-schema.js",
   "04a7-war-hell-fleet-settings-schema.js",
+  "04a8-planet-settings-schema.js",
 ].map(file => readFile(path.join(root, "src", "parts", file), "utf8")));
 
 const context = makeContext();
@@ -23,6 +24,7 @@ assert.equal(typeof context.getMarketStorageSettingsSchema, "function", "getMark
 assert.equal(typeof context.getBuildingProjectSettingsSchema, "function", "getBuildingProjectSettingsSchema must be available");
 assert.equal(typeof context.getJobTraitEjectorSettingsSchema, "function", "getJobTraitEjectorSettingsSchema must be available");
 assert.equal(typeof context.getWarHellFleetSettingsSchema, "function", "getWarHellFleetSettingsSchema must be available");
+assert.equal(typeof context.getPlanetSettingsSchema, "function", "getPlanetSettingsSchema must be available");
 
 checkProductionDefaults(context);
 checkMagicDefaults(context);
@@ -32,6 +34,7 @@ checkWeightingDefaults(context);
 checkJobEjectorDefaults(context);
 checkTraitDefaults(context);
 checkFleetDefaults(context);
+checkPlanetDefaults(context);
 
 console.log("Settings schema regression checks passed");
 
@@ -253,6 +256,19 @@ function checkFleetDefaults(context) {
   assert.equal(def.fleet_outer_sc_spc_kuiper, 2, "outer Kuiper scout count should be preserved");
 }
 
+function checkPlanetDefaults(context) {
+  const def = {};
+
+  context.applySettingsSchemaDefaults(def, context.getPlanetSettingsSchema());
+
+  assert.equal(def.biome_w_eden, 20, "best biome should keep highest weighting");
+  assert.equal(def.biome_w_hellscape, 10, "lowest biome should keep lowest weighting");
+  assert.equal(def.trait_w_elliptical, 20, "best planet trait should keep highest weighting");
+  assert.equal(def.trait_w_kamikaze, 10, "lowest planet trait should keep lowest weighting");
+  assert.equal(def.extra_w_Orbit, 0, "ordinary planet extras should default to zero");
+  assert.equal(def.extra_w_Achievement, 1000, "achievement extra should keep its high default");
+}
+
 function makeContext() {
   const resources = Object.fromEntries([
     "Food",
@@ -294,6 +310,12 @@ function makeContext() {
     "Adamantite",
     "Mana",
   ].map(id => [id, makeResource(id)]));
+
+  const biomeList = ["eden", "hellscape"];
+  const traitList = ["elliptical", "kamikaze"];
+  const extraList = ["Achievement", "Orbit"];
+  const planetBiomes = ["eden", "hellscape"];
+  const planetTraits = ["elliptical", "kamikaze"];
 
   const traits = {
     mastery: { type: "minor", val: 1 },
@@ -423,6 +445,11 @@ function makeContext() {
       throw new Error("rendering is not exercised by this schema regression test");
     },
     resources,
+    biomeList,
+    traitList,
+    extraList,
+    planetBiomes,
+    planetTraits,
     buildings,
     projects,
     jobs,

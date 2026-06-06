@@ -272,10 +272,7 @@
 
     function resetPlanetSettings(reset) {
         let def = {};
-        biomeList.forEach(biome => def["biome_w_" + biome] = (planetBiomes.length - planetBiomes.indexOf(biome)) * 10);
-        traitList.forEach(trait => def["trait_w_" + trait] = (planetTraits.length - planetTraits.indexOf(trait)) * 10);
-        extraList.forEach(extra => def["extra_w_" + extra] = 0);
-        def["extra_w_Achievement"] = 1000;
+        applySettingsSchemaDefaults(def, getPlanetSettingsSchema());
 
         applySettings(def, reset);
     }
