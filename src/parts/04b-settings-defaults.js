@@ -198,32 +198,8 @@
     }
 
     function resetWeightingSettings(reset) {
-        let def = {
-            buildingBuildIfStorageFull: false,
-            buildingWeightingNew: 3,
-            buildingWeightingUselessPowerPlant: 0.01,
-            buildingWeightingNeedfulPowerPlant: 3,
-            buildingWeightingUnderpowered: 0.8,
-            buildingWeightingUselessKnowledge: 0.01,
-            buildingWeightingNeedfulKnowledge: 5,
-            buildingWeightingMissingFuel: 10,
-            buildingWeightingNonOperatingCity: 0.2,
-            buildingWeightingNonOperating: 0,
-            buildingWeightingMissingSupply: 0,
-            buildingWeightingMissingSupport: 0,
-            buildingWeightingUselessSupport: 0.01,
-            buildingWeightingMADUseless: 0,
-            buildingWeightingUnusedEjectors: 0.1,
-            buildingWeightingCrateUseless: 0.01,
-            buildingWeightingHorseshoeUseless: 0.1,
-            buildingWeightingZenUseless: 0.01,
-            buildingWeightingGateTurret: 0.01,
-            buildingWeightingNeedStorage: 1,
-            buildingWeightingUselessHousing: 1,
-            buildingWeightingTemporal: 0.2,
-            buildingWeightingSolar: 0.2,
-            buildingWeightingOverlord: 0,
-        }
+        let def = {};
+        applySettingsSchemaDefaults(def, getBuildingProjectSettingsSchema().weighting);
 
         applySettings(def, reset);
     }

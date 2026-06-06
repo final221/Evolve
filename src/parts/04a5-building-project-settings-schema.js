@@ -44,8 +44,57 @@
             {item: "ManaSyphon", autoBuildEnabled: false, autoMax: 79, weighting: 1},
             {item: "Depot", autoBuildEnabled: true, autoMax: -1, weighting: 1},
         ];
+        const weightingRows = [
+            {target: "Any", condition: "New building", setting: "buildingWeightingNew", defaultValue: 3},
+            {target: "Powered building", condition: "Low available energy", setting: "buildingWeightingUnderpowered", defaultValue: 0.8},
+            {target: "Power plant", condition: "Low available energy", setting: "buildingWeightingNeedfulPowerPlant", defaultValue: 3},
+            {target: "Power plant", condition: "Producing more energy than required", setting: "buildingWeightingUselessPowerPlant", defaultValue: 0.01},
+            {target: "Knowledge storage", condition: "Have unlocked unafforable researches", setting: "buildingWeightingNeedfulKnowledge", defaultValue: 5},
+            {target: "Knowledge storage", condition: "All unlocked researches already affordable", setting: "buildingWeightingUselessKnowledge", defaultValue: 0.01},
+            {target: "Building with state (city)", condition: "Some instances of this building are not working", setting: "buildingWeightingNonOperatingCity", defaultValue: 0.2},
+            {target: "Building with state (space)", condition: "Some instances of this building are not working", setting: "buildingWeightingNonOperating", defaultValue: 0},
+            {target: "Building with consumption", condition: "Missing consumables to operate", setting: "buildingWeightingMissingSupply", defaultValue: 0},
+            {target: "Support consumer", condition: "Missing support to operate", setting: "buildingWeightingMissingSupport", defaultValue: 0},
+            {target: "Support provider", condition: "Provided support not currently needed", setting: "buildingWeightingUselessSupport", defaultValue: 0.01},
+            {target: "All fuel depots", condition: "Missing Oil or Helium for techs and missions", setting: "buildingWeightingMissingFuel", defaultValue: 10},
+            {target: "Not housing, barrack, oil derrick, or knowledge building", condition: "MAD prestige enabled, and affordable", setting: "buildingWeightingMADUseless", defaultValue: 0},
+            {target: "Mass Ejector", condition: "Existed ejectors not fully utilized", setting: "buildingWeightingUnusedEjectors", defaultValue: 0.1},
+            {target: "Freight Yard, Container Port, Munitions Depot", condition: "Have unused crates or containers", setting: "buildingWeightingCrateUseless", defaultValue: 0.01},
+            {target: "Horseshoes", condition: "No more Horseshoes needed", setting: "buildingWeightingHorseshoeUseless", defaultValue: 0.1},
+            {target: "Meditation Chamber", condition: "No more Meditation Space needed", setting: "buildingWeightingZenUseless", defaultValue: 0.01},
+            {target: "Gate Turret", condition: "Gate demons fully supressed", setting: "buildingWeightingGateTurret", defaultValue: 0.01},
+            {target: "Warehouses, Garage, Cargo Yard, Storehouse", condition: "Need more storage", setting: "buildingWeightingNeedStorage", defaultValue: 1},
+            {target: "Housing", condition: "Less than 90% of houses are used", setting: "buildingWeightingUselessHousing", defaultValue: 1},
+            {target: "Orbital Decay", condition: "City and Moon buildings", setting: "buildingWeightingTemporal", defaultValue: 0.2},
+            {target: "The True Path", condition: "Solar buildings after reaching Tau Ceti", setting: "buildingWeightingSolar", defaultValue: 0.2},
+            {target: "Womlings Missions", condition: "Womlings unlock actions conflicting with Overlord", setting: "buildingWeightingOverlord", defaultValue: 0},
+        ];
 
         return {
+            weighting: {
+                defaults: {
+                    buildingBuildIfStorageFull: false,
+                },
+                defaultGroups: [
+                    {
+                        rows: () => weightingRows,
+                        settings: [
+                            {key: row => row.setting, value: row => row.defaultValue},
+                        ],
+                    },
+                ],
+                tables: {
+                    weighting: {
+                        bodyId: "script_weightingTableBody",
+                        rows: () => weightingRows,
+                        columns: [
+                            {header: "Target", width: "30%", color: "has-text-warning", render: (cell, row) => cell.append(`<span class="has-text-info">${row.target}</span>`)},
+                            {header: "Condition", width: "60%", color: "has-text-warning", render: (cell, row) => cell.append(`<span class="has-text-info">${row.condition}</span>`)},
+                            {header: "Multiplier", width: "10%", color: "has-text-warning", render: (cell, row) => addTableInput(cell, row.setting)},
+                        ],
+                    },
+                },
+            },
             building: {
                 defaults: {
                     autoBuild: false,

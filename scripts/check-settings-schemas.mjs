@@ -26,6 +26,7 @@ checkProductionDefaults(context);
 checkMagicDefaults(context);
 checkMarketStorageDefaults(context);
 checkBuildingProjectDefaults(context);
+checkWeightingDefaults(context);
 checkJobEjectorDefaults(context);
 checkTraitDefaults(context);
 
@@ -137,6 +138,20 @@ function checkBuildingProjectDefaults(context) {
   assert.equal(projectDef.arpa_w_supercollider, 5, "supercollider weighting should be preserved");
   assert.equal(projectDef.arpa_m_mana_syphon, 79, "mana syphon should keep the historical max");
   assert.equal(projectDef.arpa_mana_syphon, false, "mana syphon should default disabled");
+}
+
+function checkWeightingDefaults(context) {
+  const def = {};
+
+  context.applySettingsSchemaDefaults(def, context.getBuildingProjectSettingsSchema().weighting);
+
+  assert.equal(def.buildingBuildIfStorageFull, false, "storage-full weighting bypass should default off");
+  assert.equal(def.buildingWeightingNew, 3, "new building weighting should be preserved");
+  assert.equal(def.buildingWeightingUnderpowered, 0.8, "underpowered weighting should be preserved");
+  assert.equal(def.buildingWeightingNeedfulKnowledge, 5, "needed knowledge weighting should be preserved");
+  assert.equal(def.buildingWeightingMissingFuel, 10, "missing fuel weighting should be preserved");
+  assert.equal(def.buildingWeightingNeedStorage, 1, "needed storage weighting should be preserved");
+  assert.equal(def.buildingWeightingOverlord, 0, "womling mission weighting should be preserved");
 }
 
 function checkJobEjectorDefaults(context) {
