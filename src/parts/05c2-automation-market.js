@@ -22,57 +22,84 @@
                 continue;
             }
 
-            if (resource.autoSellEnabled && (ignoreSellRatio || resource.storageRatio >= resource.autoSellRatio)) {
-                let maxAllowedTotalSellPrice = resources.Money.maxQuantity - resources.Money.currentQuantity;
-                let unitSellPrice = MarketManager.getUnitSellPrice(resource);
-                let maxAllowedUnits = Math.floor(maxAllowedTotalSellPrice / unitSellPrice); // only sell up to our maximum money
-
-                if (resource.storageRatio > resource.autoSellRatio) {
-                    maxAllowedUnits = Math.min(maxAllowedUnits, Math.floor(resource.currentQuantity - (resource.autoSellRatio * resource.maxQuantity))); // If not full sell up to our sell ratio
-                } else {
-                    maxAllowedUnits = Math.min(maxAllowedUnits, Math.floor(resource.income * 2 / ticksPerSecond())); // If resource is full then sell up to 2 ticks worth of production
-                }
-
-                if (maxAllowedUnits <= maxMultiplier) {
-                    // Our current max multiplier covers the full amount that we want to sell
-                    MarketManager.setMultiplier(maxAllowedUnits);
-                    MarketManager.sell(resource);
-                } else {
-                    // Our current max multiplier doesn't cover the full amount that we want to sell. Sell up to 5 batches.
-                    let counter = Math.min(5, Math.floor(maxAllowedUnits / maxMultiplier)); // Allow up to 5 sales per script loop
-                    MarketManager.setMultiplier(maxMultiplier);
-
-                    for (let j = 0; j < counter; j++) {
-                        MarketManager.sell(resource);
-                    }
-                }
-            }
+            applyMarketTradeAction(planMarketSellAction(resource, { ignoreSellRatio, maxMultiplier }));
 
             if (bulkSell === true) {
                 continue;
             }
 
-            if (resource.autoBuyEnabled === true && resource.storageRatio < resource.autoBuyRatio && !resources.Money.isDemanded()) {
-                let storableAmount = Math.floor((resource.autoBuyRatio - resource.storageRatio) * resource.maxQuantity);
-                let affordableAmount = Math.floor((resources.Money.currentQuantity - minimumMoneyAllowed) / MarketManager.getUnitBuyPrice(resource));
-                let maxAllowedUnits = Math.min(storableAmount, affordableAmount);
-                if (maxAllowedUnits > 0) {
-                    if (maxAllowedUnits <= maxMultiplier){
-                        MarketManager.setMultiplier(maxAllowedUnits);
-                        MarketManager.buy(resource);
-                    } else {
-                        let counter = Math.min(5, Math.floor(maxAllowedUnits / maxMultiplier));
-                        MarketManager.setMultiplier(maxMultiplier);
-
-                        for (let j = 0; j < counter; j++) {
-                            MarketManager.buy(resource);
-                        }
-                    }
-                }
-            }
+            applyMarketTradeAction(planMarketBuyAction(resource, { minimumMoneyAllowed, maxMultiplier }));
         }
 
         MarketManager.setMultiplier(currentMultiplier); // Reset multiplier
+    }
+
+    function planMarketSellAction(resource, context = {}) {
+        const ignoreSellRatio = context.ignoreSellRatio ?? false;
+        const maxMultiplier = context.maxMultiplier ?? MarketManager.getMaxMultiplier();
+        const activeResources = context.resources ?? resources;
+        const manager = context.manager ?? MarketManager;
+        const currentTicksPerSecond = context.ticksPerSecond ?? ticksPerSecond;
+
+        if (!resource.autoSellEnabled || (!ignoreSellRatio && resource.storageRatio < resource.autoSellRatio)) {
+            return null;
+        }
+
+        let maxAllowedTotalSellPrice = activeResources.Money.maxQuantity - activeResources.Money.currentQuantity;
+        let unitSellPrice = manager.getUnitSellPrice(resource);
+        let maxAllowedUnits = Math.floor(maxAllowedTotalSellPrice / unitSellPrice); // only sell up to our maximum money
+
+        if (resource.storageRatio > resource.autoSellRatio) {
+            maxAllowedUnits = Math.min(maxAllowedUnits, Math.floor(resource.currentQuantity - (resource.autoSellRatio * resource.maxQuantity))); // If not full sell up to our sell ratio
+        } else {
+            maxAllowedUnits = Math.min(maxAllowedUnits, Math.floor(resource.income * 2 / currentTicksPerSecond())); // If resource is full then sell up to 2 ticks worth of production
+        }
+
+        if (maxAllowedUnits <= maxMultiplier) {
+            // Our current max multiplier covers the full amount that we want to sell
+            return { type: "sell", resource, multiplier: maxAllowedUnits, repetitions: 1 };
+        }
+
+        // Our current max multiplier doesn't cover the full amount that we want to sell. Sell up to 5 batches.
+        return { type: "sell", resource, multiplier: maxMultiplier, repetitions: Math.min(5, Math.floor(maxAllowedUnits / maxMultiplier)) }; // Allow up to 5 sales per script loop
+    }
+
+    function planMarketBuyAction(resource, context = {}) {
+        const minimumMoneyAllowed = context.minimumMoneyAllowed ?? Math.max(resources.Money.maxQuantity * settings.minimumMoneyPercentage / 100, settings.minimumMoney);
+        const maxMultiplier = context.maxMultiplier ?? MarketManager.getMaxMultiplier();
+        const activeResources = context.resources ?? resources;
+        const manager = context.manager ?? MarketManager;
+
+        if (resource.autoBuyEnabled !== true || resource.storageRatio >= resource.autoBuyRatio || activeResources.Money.isDemanded()) {
+            return null;
+        }
+
+        let storableAmount = Math.floor((resource.autoBuyRatio - resource.storageRatio) * resource.maxQuantity);
+        let affordableAmount = Math.floor((activeResources.Money.currentQuantity - minimumMoneyAllowed) / manager.getUnitBuyPrice(resource));
+        let maxAllowedUnits = Math.min(storableAmount, affordableAmount);
+        if (maxAllowedUnits <= 0) {
+            return null;
+        }
+        if (maxAllowedUnits <= maxMultiplier){
+            return { type: "buy", resource, multiplier: maxAllowedUnits, repetitions: 1 };
+        }
+
+        return { type: "buy", resource, multiplier: maxMultiplier, repetitions: Math.min(5, Math.floor(maxAllowedUnits / maxMultiplier)) };
+    }
+
+    function applyMarketTradeAction(action, manager = MarketManager) {
+        if (!action) {
+            return;
+        }
+
+        manager.setMultiplier(action.multiplier);
+        for (let j = 0; j < action.repetitions; j++) {
+            if (action.type === "sell") {
+                manager.sell(action.resource);
+            } else if (action.type === "buy") {
+                manager.buy(action.resource);
+            }
+        }
     }
 
     function autoGalaxyMarket() {

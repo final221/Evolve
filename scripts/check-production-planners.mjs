@@ -26,6 +26,8 @@ vm.runInContext(`${helperSource}\n${automationSource}\n${marketSource}\n${tradeR
 assert.equal(typeof context.buildPriorityList, "function", "buildPriorityList must be available");
 assert.equal(typeof context.planFactoryAssignments, "function", "planFactoryAssignments must be available");
 assert.equal(typeof context.planMiningDroidAssignments, "function", "planMiningDroidAssignments must be available");
+assert.equal(typeof context.planMarketSellAction, "function", "planMarketSellAction must be available");
+assert.equal(typeof context.planMarketBuyAction, "function", "planMarketBuyAction must be available");
 assert.equal(typeof context.planGalaxyMarketAssignments, "function", "planGalaxyMarketAssignments must be available");
 assert.equal(typeof context.planTradeRouteAssignments, "function", "planTradeRouteAssignments must be available");
 
@@ -89,6 +91,82 @@ assert.equal(typeof context.planTradeRouteAssignments, "function", "planTradeRou
   const result = context.planMiningDroidAssignments([capped], { manager });
 
   assert.equal(JSON.stringify(result), JSON.stringify({ capped: 1 }), "droid planner should preserve current counts when not all droids can be assigned");
+}
+
+{
+  const resource = makeMarketResource("Iron", {
+    autoSellEnabled: true,
+    storageRatio: 0.9,
+    autoSellRatio: 0.5,
+    currentQuantity: 900,
+    maxQuantity: 1000,
+  });
+
+  const result = context.planMarketSellAction(resource, marketTradeContext({
+    maxMultiplier: 100,
+    moneyCurrentQuantity: 0,
+    moneyMaxQuantity: 1000,
+    unitSellPrice: 1,
+  }));
+
+  assert.equal(result.type, "sell", "market sell planner should return a sell action");
+  assert.equal(result.multiplier, 100, "market sell planner should cap oversized sells to the max multiplier");
+  assert.equal(result.repetitions, 4, "market sell planner should batch oversized sells without exceeding five clicks");
+}
+
+{
+  const resource = makeMarketResource("Iron", {
+    autoSellEnabled: true,
+    storageRatio: 0.5,
+    autoSellRatio: 0.5,
+    income: 60,
+  });
+
+  const result = context.planMarketSellAction(resource, marketTradeContext({
+    maxMultiplier: 100,
+    moneyCurrentQuantity: 0,
+    moneyMaxQuantity: 1000,
+    unitSellPrice: 1,
+    ticksPerSecond: () => 20,
+  }));
+
+  assert.equal(result.multiplier, 6, "market sell planner should sell two ticks of production when storage is exactly at the sell ratio");
+  assert.equal(result.repetitions, 1, "market sell planner should use one click when the max multiplier covers the sale");
+}
+
+{
+  const resource = makeMarketResource("Copper", {
+    autoBuyEnabled: true,
+    storageRatio: 0.2,
+    autoBuyRatio: 0.7,
+    maxQuantity: 1000,
+  });
+
+  const result = context.planMarketBuyAction(resource, marketTradeContext({
+    maxMultiplier: 100,
+    moneyCurrentQuantity: 900,
+    minimumMoneyAllowed: 100,
+    unitBuyPrice: 2,
+  }));
+
+  assert.equal(result.type, "buy", "market buy planner should return a buy action");
+  assert.equal(result.multiplier, 100, "market buy planner should cap oversized buys to the max multiplier");
+  assert.equal(result.repetitions, 4, "market buy planner should batch oversized buys without exceeding five clicks");
+}
+
+{
+  const resource = makeMarketResource("Copper", {
+    autoBuyEnabled: true,
+    storageRatio: 0.2,
+    autoBuyRatio: 0.7,
+  });
+
+  const result = context.planMarketBuyAction(resource, marketTradeContext({
+    moneyDemanded: true,
+    moneyCurrentQuantity: 900,
+  }));
+
+  assert.equal(result, null, "market buy planner should skip buys while money is demanded");
 }
 
 {
@@ -254,6 +332,39 @@ function makeProduction(id, options = {}) {
     weighting: options.weighting ?? 1,
     priority: options.priority ?? 1,
     cost: options.cost ?? [],
+  };
+}
+
+function marketTradeContext(overrides = {}) {
+  return {
+    maxMultiplier: overrides.maxMultiplier ?? 100,
+    minimumMoneyAllowed: overrides.minimumMoneyAllowed ?? 0,
+    resources: {
+      Money: {
+        currentQuantity: overrides.moneyCurrentQuantity ?? 0,
+        maxQuantity: overrides.moneyMaxQuantity ?? 1000,
+        isDemanded: () => overrides.moneyDemanded ?? false,
+      },
+    },
+    manager: {
+      getUnitSellPrice: () => overrides.unitSellPrice ?? 1,
+      getUnitBuyPrice: () => overrides.unitBuyPrice ?? 1,
+    },
+    ticksPerSecond: overrides.ticksPerSecond ?? (() => 1),
+  };
+}
+
+function makeMarketResource(id, options = {}) {
+  return {
+    id,
+    autoSellEnabled: options.autoSellEnabled ?? false,
+    autoSellRatio: options.autoSellRatio ?? 1,
+    autoBuyEnabled: options.autoBuyEnabled ?? false,
+    autoBuyRatio: options.autoBuyRatio ?? 0,
+    storageRatio: options.storageRatio ?? 0,
+    currentQuantity: options.currentQuantity ?? 0,
+    maxQuantity: options.maxQuantity ?? 100,
+    income: options.income ?? 0,
   };
 }
 
